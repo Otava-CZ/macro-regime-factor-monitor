@@ -9,7 +9,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddDbContextFactory<MacroRegimeDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("MacroRegime") ?? "Data Source=macro-regime.db"));
+    options.UseConfiguredDatabase(builder.Configuration));
 builder.Services.AddScoped<FactorScoringService>();
 builder.Services.AddScoped<JournalService>();
 
