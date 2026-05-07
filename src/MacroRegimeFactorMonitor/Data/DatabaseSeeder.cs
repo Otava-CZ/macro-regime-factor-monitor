@@ -51,14 +51,16 @@ public static class DatabaseSeeder
                 item.Indicator.Baseline,
                 item.Indicator.Volatility,
                 item.Factor.HigherIsRiskOn);
+            var weightedScore = FactorScoreCalculator.CalculateWeightedScore(rawScore, item.Factor.Weight);
+            var pressureContribution = MacroInterpretationScoring.CalculatePressureContribution(item.Factor.Name, weightedScore);
 
             db.FactorScores.Add(new FactorScore
             {
                 MacroFactorId = item.Factor.Id,
                 ScoreDate = SeedDate,
                 RawScore = rawScore,
-                WeightedScore = FactorScoreCalculator.CalculateWeightedScore(rawScore, item.Factor.Weight),
-                RegimeImpact = FactorScoreCalculator.ClassifyImpact(rawScore),
+                WeightedScore = weightedScore,
+                RegimeImpact = MacroInterpretationScoring.ClassifyFactorImpact(item.Factor.Name, pressureContribution),
                 Notes = "Seeded from the initial macro factor set."
             });
         }

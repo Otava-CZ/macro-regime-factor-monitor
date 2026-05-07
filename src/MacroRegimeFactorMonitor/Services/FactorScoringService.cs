@@ -28,66 +28,18 @@ public sealed class FactorScoringService(IDbContextFactory<MacroRegimeDbContext>
             .Select(group => new CategoryScore(group.Key, Math.Round(group.Sum(score => score.WeightedScore), 2)))
             .OrderByDescending(score => Math.Abs(score.Score))
             .ToList();
-        var macroInterpretations = BuildMacroInterpretations(scores);
+        var dashboardFactors = MacroInterpretationScoring.BuildDashboardFactors(scores);
+        var macroInterpretations = MacroInterpretationScoring.BuildMacroInterpretations(dashboardFactors);
 
         return new DashboardSnapshot(
             latestDate.Value,
             compositeScore,
             macroInterpretations.FirstOrDefault()?.Reading ?? "No dominant macro interpretation",
             FactorScoreCalculator.ClassifyRegime(compositeScore),
-            scores,
+            dashboardFactors,
             categoryScores,
             macroInterpretations);
     }
-
-    private static IReadOnlyList<MacroInterpretation> BuildMacroInterpretations(IReadOnlyList<FactorScore> scores)
-    {
-        var scoreByFactor = scores
-            .Where(score => score.MacroFactor is not null)
-            .ToDictionary(score => score.MacroFactor!.Name, score => score.WeightedScore, StringComparer.OrdinalIgnoreCase);
-
-        var interpretations = new[]
-        {
-            CreateInterpretation(
-                "inflation/stagflation pressure",
-                Pressure(scoreByFactor, "Inflation Pressure") + Pressure(scoreByFactor, "Inflation Breadth") + Pressure(scoreByFactor, "Energy Shock"),
-                "Inflation Pressure, Inflation Breadth, Energy Shock"),
-            CreateInterpretation(
-                "fiscal/Treasury stress",
-                Pressure(scoreByFactor, "Fiscal/Treasury Stress"),
-                "Fiscal/Treasury Stress"),
-            CreateInterpretation(
-                "hard-landing pressure",
-                Pressure(scoreByFactor, "Growth Stress"),
-                "Growth Stress"),
-            CreateInterpretation(
-                "market complacency/mispricing",
-                Support(scoreByFactor, "Market Complacency"),
-                "Market Complacency")
-        };
-
-        return interpretations
-            .OrderByDescending(interpretation => interpretation.Score)
-            .ThenBy(interpretation => interpretation.Name)
-            .ToList();
-    }
-
-    private static MacroInterpretation CreateInterpretation(string name, decimal score, string supportingFactors) =>
-        new(name, Math.Round(score, 2), ClassifyInterpretation(name, score), supportingFactors);
-
-    private static string ClassifyInterpretation(string name, decimal score) => score switch
-    {
-        >= 0.75m => $"Elevated {name}",
-        >= 0.25m => $"Building {name}",
-        <= -0.25m => $"Low {name}",
-        _ => $"Neutral {name}"
-    };
-
-    private static decimal Pressure(Dictionary<string, decimal> scores, string factorName) =>
-        scores.TryGetValue(factorName, out var score) ? -score : 0;
-
-    private static decimal Support(Dictionary<string, decimal> scores, string factorName) =>
-        scores.TryGetValue(factorName, out var score) ? score : 0;
 }
 
 public sealed record DashboardSnapshot(
@@ -95,7 +47,7 @@ public sealed record DashboardSnapshot(
     decimal CompositeScore,
     string PrimaryMacroInterpretation,
     string CompositeRegimeLabel,
-    IReadOnlyList<FactorScore> FactorScores,
+    IReadOnlyList<DashboardFactorScore> FactorScores,
     IReadOnlyList<CategoryScore> CategoryScores,
     IReadOnlyList<MacroInterpretation> MacroInterpretations)
 {
@@ -110,5 +62,3 @@ public sealed record DashboardSnapshot(
 }
 
 public sealed record CategoryScore(string Category, decimal Score);
-
-public sealed record MacroInterpretation(string Name, decimal Score, string Reading, string SupportingFactors);

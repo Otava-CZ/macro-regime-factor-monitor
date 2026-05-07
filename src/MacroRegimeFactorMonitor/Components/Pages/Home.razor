@@ -46,7 +46,8 @@ else
                     <span>@interpretation.Name</span>
                     <strong>@interpretation.Reading</strong>
                     <p>Score: @interpretation.Score</p>
-                    <p>Derived from: @interpretation.SupportingFactors</p>
+                    <p>Contributing measurable factors: @interpretation.SupportingFactors</p>
+                    <p class="why-note">Why this interpretation? @interpretation.Explanation</p>
                 </article>
             }
         </div>
@@ -69,12 +70,12 @@ else
                 @foreach (var score in snapshot.FactorScores)
                 {
                     <tr>
-                        <td>@score.MacroFactor?.Name</td>
-                        <td>@score.MacroFactor?.Category</td>
-                        <td class="number">@score.RawScore</td>
-                        <td class="number">@score.WeightedScore</td>
-                        <td><span class="pill">@score.RegimeImpact</span></td>
-                        <td>@score.Notes</td>
+                        <td>@score.Factor.MacroFactor?.Name</td>
+                        <td>@score.Factor.MacroFactor?.Category</td>
+                        <td class="number">@score.Factor.RawScore</td>
+                        <td class="number">@score.Factor.WeightedScore</td>
+                        <td><span class="pill">@score.DashboardImpact</span></td>
+                        <td>@score.Factor.Notes</td>
                     </tr>
                 }
             </tbody>

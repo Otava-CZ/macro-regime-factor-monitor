@@ -1,6 +1,6 @@
 # Macro Regime Factor Monitor
 
-A small .NET 8 ASP.NET Core Blazor app for tracking macro regime factor scores, explicit macro interpretations, weekly review notes, and trade idea journal entries.
+A small .NET 8 ASP.NET Core Blazor app for tracking macro regime factor scores, explicit macro pressure interpretations, weekly review notes, and trade idea journal entries.
 
 The system is a **factor monitor**, not a fixed scenario classifier:
 
@@ -12,7 +12,7 @@ Raw data -> measurable factor scores -> macro interpretation -> trade candidates
 
 ## Features
 
-- Blazor dashboard showing the latest persisted factor scores from SQLite.
+- Blazor dashboard showing the latest persisted six measurable factor scores from SQLite.
 - EF Core `DbContext` backed by SQLite.
 - Six measurable macro factors are preserved as the base scoring layer:
   1. Inflation Pressure
@@ -21,7 +21,7 @@ Raw data -> measurable factor scores -> macro interpretation -> trade candidates
   4. Growth Stress
   5. Fiscal/Treasury Stress
   6. Market Complacency
-- Explicit derived macro interpretations from those six factors:
+- Explicit derived macro pressure interpretations from those six factors:
   - inflation/stagflation pressure
   - fiscal/Treasury stress
   - hard-landing pressure
@@ -72,11 +72,28 @@ raw score = ((value - baseline) / volatility) * direction
 weighted score = raw score * factor weight
 ```
 
-`direction` is `1` when higher values are constructive for risk assets and `-1` when higher values are a macro risk. Weighted scores are summed into category scores and a composite dashboard score.
+`direction` is `1` when higher indicator values are constructive for raw risk-asset scoring and `-1` when higher indicator values are adverse for raw risk-asset scoring. The raw and weighted factor scores are preserved as the measurable scoring layer. Weighted scores are still summed into category scores and a composite dashboard score for continuity.
+
+## Factor score vs. macro pressure interpretation
+
+A measurable factor score is not always the same thing as the dashboard's macro pressure interpretation. The factor score answers, "How did this observed indicator score under its raw direction and weight?" The interpretation layer answers, "Does this factor add macro pressure or macro relief for the monitor's current theme?"
+
+The dashboard therefore uses an explicit pressure mapping instead of relying only on `HigherIsRiskOn` wording:
+
+| Measurable factor | Pressure contribution |
+| --- | --- |
+| Inflation Pressure | Higher pressure when the weighted score is negative |
+| Inflation Breadth | Higher pressure when the weighted score is negative |
+| Energy Shock | Higher pressure when the weighted score is negative |
+| Growth Stress | Higher hard-landing pressure when the weighted score is negative |
+| Fiscal/Treasury Stress | Higher pressure when the weighted score is negative |
+| Market Complacency | Higher complacency/mispricing pressure when the factor score indicates unusually calm volatility |
+
+This distinction is especially important for Market Complacency. Low volatility can be supportive for near-term risk assets, but the macro monitor treats volatility below its baseline as possible complacency or mispricing pressure because risk pricing may be too relaxed versus macro risks. The dashboard should therefore describe low-VIX complacency as complacency/mispricing pressure, not as generic support.
 
 ## Macro interpretation approach
 
-The dashboard keeps the six measurable factor scores visible and then derives interpretation readings from them:
+The dashboard keeps the six measurable factor scores visible and then derives four interpretation readings from them. Each interpretation displays its score, reading, contributing measurable factors, and a short "Why this interpretation?" explanation.
 
 | Interpretation | Derived from |
 | --- | --- |
@@ -85,7 +102,7 @@ The dashboard keeps the six measurable factor scores visible and then derives in
 | hard-landing pressure | Growth Stress |
 | market complacency/mispricing | Market Complacency |
 
-These readings are decision-support context for a human user. They are not generic-only regime labels, not trading signals, and not automated execution instructions.
+These readings are decision-support context for a human user. They are not generic-only regime labels, not trading signals, and not automated execution instructions. The app has no broker integration, no automatic trading, no execution routing, and no order management.
 
 ## Composite regime thresholds
 
