@@ -5,6 +5,7 @@ public sealed class DatabaseSeedResult
     public int SeededDataSources { get; set; }
     public int SeededMacroFactors { get; set; }
     public int SeededIndicators { get; set; }
+    public int SeededExternalSeries { get; set; }
     public int SeededObservations { get; set; }
     public int SeededFactorScores { get; set; }
     public int SeededWeeklyReviews { get; set; }

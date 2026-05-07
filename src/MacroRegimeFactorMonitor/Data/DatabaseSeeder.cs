@@ -22,12 +22,14 @@ public static class DatabaseSeeder
 
         if (await HasExistingSampleDataAsync(db))
         {
+            result.SeededExternalSeries = await SeedFredExternalSeriesAsync(db, logger);
             result.Message = "Source registry synchronized; initial sample macro data skipped because MacroFactors already exist.";
             logger?.LogInformation("Initial sample data skipped because MacroFactors already exist.");
             return result;
         }
 
         await SeedInitialSampleDataAsync(db, result);
+        result.SeededExternalSeries = await SeedFredExternalSeriesAsync(db, logger);
         result.Message = "Source registry synchronized; initial sample macro data inserted into an empty database.";
         return result;
     }
@@ -152,6 +154,126 @@ public static class DatabaseSeeder
         });
         result.SeededTradeIdeas = 1;
     }
+
+    private static async Task<int> SeedFredExternalSeriesAsync(
+        MacroRegimeDbContext db,
+        ILogger? logger)
+    {
+        var fred = await db.DataSources
+            .Where(source => source.Name == "FRED")
+            .OrderBy(source => source.Id)
+            .FirstOrDefaultAsync();
+
+        if (fred is null)
+        {
+            logger?.LogWarning("Skipping FRED external series seed because the FRED data source is missing.");
+            return 0;
+        }
+
+        var approvedMappings = CreateApprovedFredMappings();
+        var indicatorNames = approvedMappings
+            .Select(mapping => mapping.IndicatorName)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        var indicatorRows = await db.Indicators
+            .Where(indicator => indicatorNames.Contains(indicator.Name))
+            .OrderBy(indicator => indicator.Id)
+            .ToListAsync();
+        var indicators = indicatorRows
+            .GroupBy(indicator => indicator.Name, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+
+        var seededCount = 0;
+        foreach (var mapping in approvedMappings)
+        {
+            if (!indicators.TryGetValue(mapping.IndicatorName, out var indicator))
+            {
+                logger?.LogWarning(
+                    "Skipping FRED external series {ExternalSeriesId} because indicator {IndicatorName} is missing.",
+                    mapping.ExternalSeriesId,
+                    mapping.IndicatorName);
+                continue;
+            }
+
+            var mappingExists = await db.ExternalSeries.AnyAsync(series =>
+                series.DataSourceId == fred.Id &&
+                series.ExternalSeriesId == mapping.ExternalSeriesId &&
+                series.IndicatorId == indicator.Id);
+
+            if (mappingExists)
+            {
+                continue;
+            }
+
+            db.ExternalSeries.Add(new ExternalSeries
+            {
+                DataSourceId = fred.Id,
+                IndicatorId = indicator.Id,
+                ExternalSeriesId = mapping.ExternalSeriesId,
+                Endpoint = mapping.Endpoint,
+                Frequency = mapping.Frequency,
+                Units = mapping.Units,
+                Transform = mapping.Transform,
+                ObservationDateField = mapping.ObservationDateField,
+                ValueField = mapping.ValueField,
+                IsActive = true,
+                Notes = mapping.Notes
+            });
+            seededCount++;
+        }
+
+        if (seededCount > 0)
+        {
+            await db.SaveChangesAsync();
+        }
+
+        return seededCount;
+    }
+
+    private static FredExternalSeriesMapping[] CreateApprovedFredMappings() =>
+    [
+        new(
+            IndicatorName: "Core CPI Trend",
+            ExternalSeriesId: "CPILFESL",
+            Endpoint: "/series/observations",
+            Frequency: "Monthly",
+            Units: "PercentChangeFromYearAgo",
+            Transform: "pc1",
+            ObservationDateField: "date",
+            ValueField: "value",
+            Notes: "Core CPI less food and energy; FRED units transform pc1 gives percent change from year ago."),
+        new(
+            IndicatorName: "VIX Index",
+            ExternalSeriesId: "VIXCLS",
+            Endpoint: "/series/observations",
+            Frequency: "Daily",
+            Units: "Level",
+            Transform: "lin",
+            ObservationDateField: "date",
+            ValueField: "value",
+            Notes: "CBOE volatility index close via FRED; used for market complacency/mispricing factor."),
+        new(
+            IndicatorName: "10Y Treasury Term Premium",
+            ExternalSeriesId: "DGS10",
+            Endpoint: "/series/observations",
+            Frequency: "Daily",
+            Units: "Level",
+            Transform: "lin",
+            ObservationDateField: "date",
+            ValueField: "value",
+            Notes: "10-year Treasury constant maturity rate; temporary proxy until a better Treasury stress/term-premium series is selected.")
+    ];
+
+    private sealed record FredExternalSeriesMapping(
+        string IndicatorName,
+        string ExternalSeriesId,
+        string Endpoint,
+        string Frequency,
+        string Units,
+        string Transform,
+        string ObservationDateField,
+        string ValueField,
+        string Notes);
 
     private static async Task<int> SeedDataSourcesAsync(MacroRegimeDbContext db)
     {
