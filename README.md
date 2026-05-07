@@ -123,6 +123,16 @@ Historical macro data ingestion is intended to be source-driven rather than copy
 
 Future PRs will add importer clients for official/public APIs, including the FRED observations API, BLS public timeseries API, EIA API v2, and Treasury Fiscal Data REST API. This PR does not implement live API fetching, does not import historical datasets, and does not add API keys.
 
+## Import architecture
+
+v0.6.3 adds the import architecture skeleton only. The application now has DTOs, source-client interfaces, a source-client factory, placeholder clients, and an observation import service structure that future PRs can extend without changing dashboard, scoring, journal, or trading behavior.
+
+- Real FRED, BLS, EIA, and Treasury Fiscal Data API clients will be implemented later; the current clients intentionally throw clear `NotImplementedException` messages.
+- No external API calls are made by this version, and no API keys or secrets are introduced.
+- Future import attempts will be audited through `DataImportRuns`, with start/finish timestamps, status, row counts, notes, and errors.
+- Future observations will be normalized into `IndicatorObservations` while preserving existing data and linking imported rows back to their `DataImportRun`.
+- This skeleton does not import historical data and does not insert or update observations.
+
 ## Scoring approach
 
 For each seeded factor, the app computes a normalized raw score from its indicator observation:
