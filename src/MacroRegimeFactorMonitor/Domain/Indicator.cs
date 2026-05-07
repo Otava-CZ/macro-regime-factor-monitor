@@ -12,4 +12,5 @@ public sealed class Indicator
     public decimal Volatility { get; set; }
 
     public List<IndicatorObservation> Observations { get; set; } = [];
+    public List<ExternalSeries> ExternalSeries { get; set; } = [];
 }

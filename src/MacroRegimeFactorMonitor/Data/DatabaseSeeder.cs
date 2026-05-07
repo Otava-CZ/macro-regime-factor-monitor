@@ -10,6 +10,8 @@ public static class DatabaseSeeder
 
     public static async Task SeedAsync(MacroRegimeDbContext db)
     {
+        await SeedDataSourcesAsync(db);
+
         if (await db.MacroFactors.AnyAsync())
         {
             return;
@@ -89,6 +91,57 @@ public static class DatabaseSeeder
             RiskNotes = "Reassess if growth data improves or inflation pressure cools."
         });
 
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedDataSourcesAsync(MacroRegimeDbContext db)
+    {
+        var sourceDefinitions = new[]
+        {
+            new DataSource
+            {
+                Name = "FRED",
+                SourceType = "MacroApi",
+                BaseUrl = "https://api.stlouisfed.org/fred",
+                RequiresApiKey = true
+            },
+            new DataSource
+            {
+                Name = "BLS",
+                SourceType = "MacroApi",
+                BaseUrl = "https://api.bls.gov/publicAPI/v2",
+                RequiresApiKey = false
+            },
+            new DataSource
+            {
+                Name = "EIA",
+                SourceType = "EnergyApi",
+                BaseUrl = "https://api.eia.gov/v2",
+                RequiresApiKey = true
+            },
+            new DataSource
+            {
+                Name = "Treasury Fiscal Data",
+                SourceType = "FiscalApi",
+                BaseUrl = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service",
+                RequiresApiKey = false
+            }
+        };
+
+        var existingNames = await db.DataSources
+            .Select(source => source.Name)
+            .ToListAsync();
+        var existingNameSet = existingNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var missingSources = sourceDefinitions
+            .Where(source => !existingNameSet.Contains(source.Name))
+            .ToList();
+
+        if (missingSources.Count == 0)
+        {
+            return;
+        }
+
+        db.DataSources.AddRange(missingSources);
         await db.SaveChangesAsync();
     }
 
