@@ -15,6 +15,7 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
     public DbSet<FactorScore> FactorScores => Set<FactorScore>();
     public DbSet<WeeklyReview> WeeklyReviews => Set<WeeklyReview>();
     public DbSet<TradeIdea> TradeIdeas => Set<TradeIdea>();
+    public DbSet<StartupSyncRun> StartupSyncRuns => Set<StartupSyncRun>();
 
     public async Task ApplyStartupSchemaUpgradesAsync()
     {
@@ -34,6 +35,8 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
 
     private async Task ApplySqliteSchemaUpgradesAsync()
     {
+        await EnsureSqliteStartupSyncRunsTableAsync();
+
         var existingColumns = await GetTableColumnsAsync("TradeIdeas");
         if (existingColumns.Count == 0)
         {
@@ -61,6 +64,39 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
         }
     }
 
+
+    private async Task EnsureSqliteStartupSyncRunsTableAsync()
+    {
+        await Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS StartupSyncRuns (
+                Id INTEGER NOT NULL CONSTRAINT PK_StartupSyncRuns PRIMARY KEY AUTOINCREMENT,
+                StartedAtUtc TEXT NOT NULL,
+                FinishedAtUtc TEXT NULL,
+                Status TEXT NOT NULL,
+                Message TEXT NOT NULL DEFAULT '',
+                AppliedMigrations TEXT NOT NULL DEFAULT '',
+                SeededDataSources INTEGER NOT NULL DEFAULT 0,
+                SeededMacroFactors INTEGER NOT NULL DEFAULT 0,
+                SeededIndicators INTEGER NOT NULL DEFAULT 0,
+                SeededObservations INTEGER NOT NULL DEFAULT 0,
+                SeededFactorScores INTEGER NOT NULL DEFAULT 0,
+                SeededWeeklyReviews INTEGER NOT NULL DEFAULT 0,
+                SeededTradeIdeas INTEGER NOT NULL DEFAULT 0,
+                ErrorMessage TEXT NOT NULL DEFAULT ''
+            );
+            """);
+
+        await Database.ExecuteSqlRawAsync("""
+            CREATE INDEX IF NOT EXISTS IX_StartupSyncRuns_StartedAtUtc
+            ON StartupSyncRuns (StartedAtUtc);
+            """);
+
+        await Database.ExecuteSqlRawAsync("""
+            CREATE INDEX IF NOT EXISTS IX_StartupSyncRuns_Status
+            ON StartupSyncRuns (Status);
+            """);
+    }
+
     private async Task<HashSet<string>> GetTableColumnsAsync(string tableName)
     {
         var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -84,6 +120,20 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        ConfigureMacroFactor(modelBuilder);
+        ConfigureIndicator(modelBuilder);
+        ConfigureDataSource(modelBuilder);
+        ConfigureExternalSeries(modelBuilder);
+        ConfigureDataImportRun(modelBuilder);
+        ConfigureStartupSyncRun(modelBuilder);
+        ConfigureIndicatorObservation(modelBuilder);
+        ConfigureFactorScore(modelBuilder);
+        ConfigureWeeklyReview(modelBuilder);
+        ConfigureTradeIdea(modelBuilder);
+    }
+
+    private static void ConfigureMacroFactor(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<MacroFactor>(entity =>
         {
             entity.Property(factor => factor.Name).HasMaxLength(120).IsRequired();
@@ -91,7 +141,10 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
             entity.Property(factor => factor.Weight).HasPrecision(8, 4);
             entity.HasIndex(factor => factor.Name).IsUnique();
         });
+    }
 
+    private static void ConfigureIndicator(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<Indicator>(entity =>
         {
             entity.Property(indicator => indicator.Name).HasMaxLength(120).IsRequired();
@@ -104,7 +157,10 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
                 .HasForeignKey(indicator => indicator.MacroFactorId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+    }
 
+    private static void ConfigureDataSource(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<DataSource>(entity =>
         {
             entity.Property(source => source.Name).HasMaxLength(120).IsRequired();
@@ -113,7 +169,10 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
             entity.Property(source => source.Notes).HasDefaultValue(string.Empty);
             entity.Property(source => source.IsActive).HasDefaultValue(true);
         });
+    }
 
+    private static void ConfigureExternalSeries(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<ExternalSeries>(entity =>
         {
             entity.Property(series => series.ExternalSeriesId).HasMaxLength(120).IsRequired();
@@ -137,7 +196,10 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
                 .HasForeignKey(series => series.DataSourceId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+    }
 
+    private static void ConfigureDataImportRun(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<DataImportRun>(entity =>
         {
             entity.Property(run => run.Status).HasMaxLength(40).IsRequired();
@@ -150,7 +212,24 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
                 .HasForeignKey(run => run.DataSourceId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+    }
 
+    private static void ConfigureStartupSyncRun(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<StartupSyncRun>(entity =>
+        {
+            entity.Property(run => run.StartedAtUtc).IsRequired();
+            entity.Property(run => run.Status).HasMaxLength(40).IsRequired();
+            entity.Property(run => run.Message).HasDefaultValue(string.Empty);
+            entity.Property(run => run.AppliedMigrations).HasDefaultValue(string.Empty);
+            entity.Property(run => run.ErrorMessage).HasDefaultValue(string.Empty);
+            entity.HasIndex(run => run.StartedAtUtc);
+            entity.HasIndex(run => run.Status);
+        });
+    }
+
+    private static void ConfigureIndicatorObservation(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<IndicatorObservation>(entity =>
         {
             entity.Property(observation => observation.Value).HasPrecision(12, 4);
@@ -171,7 +250,10 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
                 .HasForeignKey(observation => observation.DataImportRunId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
+    }
 
+    private static void ConfigureFactorScore(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<FactorScore>(entity =>
         {
             entity.Property(score => score.RawScore).HasPrecision(8, 4);
@@ -183,13 +265,19 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
                 .HasForeignKey(score => score.MacroFactorId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+    }
 
+    private static void ConfigureWeeklyReview(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<WeeklyReview>(entity =>
         {
             entity.Property(review => review.RegimeAssessment).HasMaxLength(120).IsRequired();
             entity.HasIndex(review => review.WeekEnding).IsUnique();
         });
+    }
 
+    private static void ConfigureTradeIdea(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<TradeIdea>(entity =>
         {
             entity.Property(idea => idea.Title).HasMaxLength(160).IsRequired();

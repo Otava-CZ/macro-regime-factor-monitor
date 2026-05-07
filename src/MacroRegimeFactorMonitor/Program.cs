@@ -5,35 +5,50 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
-
-builder.Services.AddDbContextFactory<MacroRegimeDbContext>(options =>
-    options.UseConfiguredDatabase(builder.Configuration));
-builder.Services.AddScoped<FactorScoringService>();
-builder.Services.AddScoped<JournalService>();
+ConfigureServices(builder);
 
 var app = builder.Build();
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    app.UseHsts();
-}
-
-app.UseHttpsRedirection();
-app.UseStaticFiles();
-app.UseAntiforgery();
-
-await using (var scope = app.Services.CreateAsyncScope())
-{
-    var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<MacroRegimeDbContext>>();
-    await using var db = await dbFactory.CreateDbContextAsync();
-    await db.ApplyStartupSchemaUpgradesAsync();
-    await DatabaseSeeder.SeedAsync(db);
-}
-
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+ConfigureMiddleware(app);
+await RunStartupSyncAsync(app);
+MapEndpoints(app);
 
 app.Run();
+
+static void ConfigureServices(WebApplicationBuilder builder)
+{
+    builder.Services.AddRazorComponents()
+        .AddInteractiveServerComponents();
+
+    builder.Services.AddDbContextFactory<MacroRegimeDbContext>(options =>
+        options.UseConfiguredDatabase(builder.Configuration));
+    builder.Services.AddScoped<FactorScoringService>();
+    builder.Services.AddScoped<JournalService>();
+    builder.Services.AddScoped<StartupSyncService>();
+}
+
+static void ConfigureMiddleware(WebApplication app)
+{
+    if (!app.Environment.IsDevelopment())
+    {
+        app.UseExceptionHandler("/Error", createScopeForErrors: true);
+        app.UseHsts();
+    }
+
+    app.UseHttpsRedirection();
+    app.UseStaticFiles();
+    app.UseAntiforgery();
+}
+
+static async Task RunStartupSyncAsync(WebApplication app)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var startupSync = scope.ServiceProvider.GetRequiredService<StartupSyncService>();
+    await startupSync.RunAsync();
+}
+
+static void MapEndpoints(WebApplication app)
+{
+    app.MapRazorComponents<App>()
+        .AddInteractiveServerRenderMode();
+}

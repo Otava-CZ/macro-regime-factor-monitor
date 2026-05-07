@@ -28,7 +28,7 @@ Raw data -> measurable factor scores -> macro interpretation -> trade candidates
   - market complacency/mispricing
 - Weekly review page for manual macro notes.
 - Trade idea journal page with fields for thesis, entry trigger, invalidation, catalyst, max loss, time horizon, risk notes, and post-mortem.
-- Startup SQLite schema upgrade that adds v0.3 trade idea columns to existing local `macro-regime.db` files; PostgreSQL uses EF-created schema initialization for new databases.
+- Startup SQLite schema upgrade that adds v0.3 trade idea columns to existing local `macro-regime.db` files; PostgreSQL uses EF Core migrations.
 
 ## Development environment
 
@@ -99,7 +99,18 @@ dotnet user-secrets set "Database:Provider" "Postgres" --project .\src\MacroRegi
 dotnet user-secrets set "ConnectionStrings:MacroRegime" "Host=db.<project-ref>.supabase.co;Port=5432;Database=postgres;Username=postgres;Password=<placeholder-password>;SSL Mode=Require;Trust Server Certificate=true" --project .\src\MacroRegimeFactorMonitor\MacroRegimeFactorMonitor.csproj
 ```
 
-The startup path creates the EF model schema for a new database before seeding the sample monitor data. The legacy lightweight column upgrade remains SQLite-only and is not run against Postgres.
+The startup path applies EF Core migrations for Postgres or creates/upgrades the local SQLite schema before seeding the sample monitor data. The legacy lightweight column upgrade remains SQLite-only and is not run against Postgres.
+
+
+## Startup synchronization safety
+
+Startup synchronization is designed to be safe to run repeatedly against the same SQLite or Supabase/Postgres database.
+
+- Schema migrations and lightweight startup schema upgrades are applied idempotently before seeding.
+- The data source registry is additive only: startup inserts missing official/public source definitions by `Name` and does not update, disable, delete, or overwrite existing `DataSources` rows.
+- Initial sample macro seed data is inserted only when the database has no `MacroFactors` rows. If any macro factors already exist, startup skips sample `MacroFactors`, `Indicators`, `IndicatorObservations`, `FactorScores`, `WeeklyReviews`, and `TradeIdeas`.
+- Startup never overwrites imported observations, edited factor definitions, user-created journal entries, or custom/disabled source rows.
+- Each startup writes one `StartupSyncRuns` audit row with the applied migration list, seeding counts, completion status, message, and any error message captured before the failure is rethrown.
 
 ## Historical data ingestion plan
 
