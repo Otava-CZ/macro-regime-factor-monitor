@@ -22,6 +22,11 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
             return;
         }
 
+        await ApplySqliteSchemaUpgradesAsync();
+    }
+
+    private async Task ApplySqliteSchemaUpgradesAsync()
+    {
         var existingColumns = await GetTableColumnsAsync("TradeIdeas");
         if (existingColumns.Count == 0)
         {
