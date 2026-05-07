@@ -10,6 +10,8 @@ public static class DatabaseSeeder
 
     public static async Task SeedAsync(MacroRegimeDbContext db)
     {
+        await SeedDataSourcesAsync(db);
+
         if (await db.MacroFactors.AnyAsync())
         {
             return;
@@ -88,6 +90,46 @@ public static class DatabaseSeeder
             PostMortem = "Document whether the factor-derived interpretation, entry trigger, and invalidation worked as expected after closing.",
             RiskNotes = "Reassess if growth data improves or inflation pressure cools."
         });
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedDataSourcesAsync(MacroRegimeDbContext db)
+    {
+        if (await db.DataSources.AnyAsync())
+        {
+            return;
+        }
+
+        db.DataSources.AddRange(
+            new DataSource
+            {
+                Name = "FRED",
+                SourceType = "MacroApi",
+                BaseUrl = "https://api.stlouisfed.org/fred",
+                RequiresApiKey = true
+            },
+            new DataSource
+            {
+                Name = "BLS",
+                SourceType = "MacroApi",
+                BaseUrl = "https://api.bls.gov/publicAPI/v2",
+                RequiresApiKey = false
+            },
+            new DataSource
+            {
+                Name = "EIA",
+                SourceType = "EnergyApi",
+                BaseUrl = "https://api.eia.gov/v2",
+                RequiresApiKey = true
+            },
+            new DataSource
+            {
+                Name = "Treasury Fiscal Data",
+                SourceType = "FiscalApi",
+                BaseUrl = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service",
+                RequiresApiKey = false
+            });
 
         await db.SaveChangesAsync();
     }
