@@ -12,8 +12,8 @@ Raw data -> measurable factor scores -> macro interpretation -> trade candidates
 
 ## Features
 
-- Blazor dashboard showing the latest persisted factor scores from SQLite.
-- EF Core `DbContext` backed by SQLite.
+- Blazor dashboard showing the latest persisted factor scores from the configured EF Core database.
+- EF Core `DbContext` backed by local SQLite by default, with PostgreSQL/Supabase support for development environments.
 - Six measurable macro factors are preserved as the base scoring layer:
   1. Inflation Pressure
   2. Inflation Breadth
@@ -28,7 +28,7 @@ Raw data -> measurable factor scores -> macro interpretation -> trade candidates
   - market complacency/mispricing
 - Weekly review page for manual macro notes.
 - Trade idea journal page with fields for thesis, entry trigger, invalidation, catalyst, max loss, time horizon, risk notes, and post-mortem.
-- Startup SQLite schema upgrade that adds v0.3 trade idea columns to existing local `macro-regime.db` files.
+- Startup SQLite schema upgrade that adds v0.3 trade idea columns to existing local `macro-regime.db` files; PostgreSQL uses EF-created schema initialization for new databases.
 
 ## Development environment
 
@@ -62,6 +62,44 @@ Open the repository in the Dev Container so `dotnet` is available for restore, b
 On first startup, the app creates a local SQLite database file named `macro-regime.db` in the working directory and seeds it with the initial macro factors, one indicator per factor, latest observations, factor scores, a sample weekly review, and a sample trade idea.
 
 If a local database already exists from an earlier version, startup applies a lightweight SQLite schema upgrade before querying trade ideas so the v0.3 journal fields are available without deleting local data.
+
+## Database configuration
+
+The app chooses its EF Core provider from configuration:
+
+- `Database:Provider = Postgres` uses the Npgsql PostgreSQL provider with `ConnectionStrings:MacroRegime`.
+- Any other value, a blank value, or a missing provider uses SQLite.
+- If SQLite is selected and `ConnectionStrings:MacroRegime` is blank or missing, the app falls back to the local SQLite connection string `Data Source=macro-regime.db`.
+- If Postgres is selected, `ConnectionStrings:MacroRegime` must be set. The app fails fast if it is missing or blank.
+
+`appsettings.json` intentionally does not contain a real database secret. Keep the local default on SQLite for normal development, and store any Supabase/Postgres connection string outside source control with .NET user secrets.
+
+### Local SQLite default
+
+No configuration is required for the default local SQLite path:
+
+```powershell
+dotnet run --project .\src\MacroRegimeFactorMonitor\MacroRegimeFactorMonitor.csproj
+```
+
+You may also set the provider explicitly while leaving the connection string blank so the built-in local fallback is used:
+
+```powershell
+dotnet user-secrets init --project .\src\MacroRegimeFactorMonitor\MacroRegimeFactorMonitor.csproj
+dotnet user-secrets set "Database:Provider" "Sqlite" --project .\src\MacroRegimeFactorMonitor\MacroRegimeFactorMonitor.csproj
+```
+
+### Supabase/Postgres development
+
+For Supabase development, set the provider to `Postgres` and store the connection string with user secrets. Replace the host, database, user, and placeholder password with your Supabase project values; do not commit the real password.
+
+```powershell
+dotnet user-secrets init --project .\src\MacroRegimeFactorMonitor\MacroRegimeFactorMonitor.csproj
+dotnet user-secrets set "Database:Provider" "Postgres" --project .\src\MacroRegimeFactorMonitor\MacroRegimeFactorMonitor.csproj
+dotnet user-secrets set "ConnectionStrings:MacroRegime" "Host=db.<project-ref>.supabase.co;Port=5432;Database=postgres;Username=postgres;Password=<placeholder-password>;SSL Mode=Require;Trust Server Certificate=true" --project .\src\MacroRegimeFactorMonitor\MacroRegimeFactorMonitor.csproj
+```
+
+The startup path creates the EF model schema for a new database before seeding the sample monitor data. The legacy lightweight column upgrade remains SQLite-only and is not run against Postgres.
 
 ## Scoring approach
 
