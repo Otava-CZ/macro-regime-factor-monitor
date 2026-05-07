@@ -46,7 +46,9 @@ else
                     <span>@interpretation.Name</span>
                     <strong>@interpretation.Reading</strong>
                     <p>Score: @interpretation.Score</p>
-                    <p>Derived from: @interpretation.SupportingFactors</p>
+                    <p><strong>Contributors:</strong> @interpretation.SupportingFactors</p>
+                    <p><strong>Pressure contribution:</strong> @interpretation.FactorContributions</p>
+                    <p class="why"><strong>Why this interpretation?</strong> @interpretation.Explanation</p>
                 </article>
             }
         </div>
@@ -61,7 +63,9 @@ else
                     <th>Category</th>
                     <th class="number">Raw</th>
                     <th class="number">Weighted</th>
+                    <th class="number">Pressure contribution</th>
                     <th>Impact</th>
+                    <th>Interpretation note</th>
                     <th>Notes</th>
                 </tr>
             </thead>
@@ -73,7 +77,9 @@ else
                         <td>@score.MacroFactor?.Category</td>
                         <td class="number">@score.RawScore</td>
                         <td class="number">@score.WeightedScore</td>
-                        <td><span class="pill">@score.RegimeImpact</span></td>
+                        <td class="number">@FactorScoreCalculator.CalculatePressureContribution(score.WeightedScore, score.MacroFactor?.Name)</td>
+                        <td><span class="pill">@FactorScoreCalculator.ClassifyPressureImpact(score.RawScore, score.MacroFactor?.Name)</span></td>
+                        <td>@FactorScoreCalculator.ExplainPressureImpact(score.RawScore, score.MacroFactor?.Name)</td>
                         <td>@score.Notes</td>
                     </tr>
                 }

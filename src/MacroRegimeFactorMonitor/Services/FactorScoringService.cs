@@ -49,26 +49,26 @@ public static class MacroInterpretationScoring
         new(
             "inflation/stagflation pressure",
             ["Inflation Pressure", "Inflation Breadth", "Energy Shock"],
-            InvertScores: true),
+            "Inflation, breadth, and energy factors are converted into pressure contributions; positive contributions mean the factors are adding inflation or stagflation pressure."),
         new(
             "fiscal/Treasury stress",
             ["Fiscal/Treasury Stress"],
-            InvertScores: true),
+            "Treasury-market stress is read as pressure when the scored factor moves away from baseline in the stress direction."),
         new(
             "hard-landing pressure",
             ["Growth Stress"],
-            InvertScores: true),
+            "Growth stress is read as pressure when activity momentum weakens versus its baseline."),
         new(
             "market complacency/mispricing",
             ["Market Complacency"],
-            InvertScores: false)
+            "Low-volatility complacency is treated as possible mispricing pressure, rather than a bullish signal.")
     ];
 
     public static IReadOnlyList<MacroInterpretation> Build(IReadOnlyList<FactorScore> scores)
     {
         var scoreByFactor = scores
             .Where(score => score.MacroFactor is not null)
-            .ToDictionary(score => score.MacroFactor!.Name, score => score.WeightedScore, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(score => score.MacroFactor!.Name, score => score, StringComparer.OrdinalIgnoreCase);
 
         return InterpretationDefinitions
             .Select(definition => CreateInterpretation(definition, scoreByFactor))
@@ -79,22 +79,29 @@ public static class MacroInterpretationScoring
 
     private static MacroInterpretation CreateInterpretation(
         MacroInterpretationDefinition definition,
-        Dictionary<string, decimal> scoreByFactor)
+        Dictionary<string, FactorScore> scoreByFactor)
     {
-        var contributingFactors = definition.FactorNames
+        var contributingScores = definition.FactorNames
             .Where(scoreByFactor.ContainsKey)
+            .Select(factorName => scoreByFactor[factorName])
             .ToList();
-        var score = contributingFactors.Sum(factorName =>
-            definition.InvertScores ? -scoreByFactor[factorName] : scoreByFactor[factorName]);
-        var supportingFactors = contributingFactors.Count > 0
-            ? string.Join(", ", contributingFactors)
+        var score = contributingScores.Sum(score =>
+            FactorScoreCalculator.CalculatePressureContribution(score.WeightedScore, score.MacroFactor?.Name));
+        var supportingFactors = contributingScores.Count > 0
+            ? string.Join(", ", contributingScores.Select(score => score.MacroFactor!.Name))
             : "No scored factors";
+        var factorContributions = contributingScores.Count > 0
+            ? string.Join("; ", contributingScores.Select(score =>
+                $"{score.MacroFactor!.Name}: {FactorScoreCalculator.CalculatePressureContribution(score.WeightedScore, score.MacroFactor.Name):+0.00;-0.00;0.00} ({FactorScoreCalculator.ClassifyPressureImpact(score.RawScore, score.MacroFactor.Name)})"))
+            : "No scored factor contributions yet.";
 
         return new(
             definition.Name,
             Math.Round(score, 2),
             ClassifyInterpretation(definition.Name, score),
-            supportingFactors);
+            supportingFactors,
+            factorContributions,
+            definition.Explanation);
     }
 
     private static string ClassifyInterpretation(string name, decimal score) => score switch
@@ -108,7 +115,7 @@ public static class MacroInterpretationScoring
     private sealed record MacroInterpretationDefinition(
         string Name,
         IReadOnlyList<string> FactorNames,
-        bool InvertScores);
+        string Explanation);
 
 }
 
@@ -133,4 +140,10 @@ public sealed record DashboardSnapshot(
 
 public sealed record CategoryScore(string Category, decimal Score);
 
-public sealed record MacroInterpretation(string Name, decimal Score, string Reading, string SupportingFactors);
+public sealed record MacroInterpretation(
+    string Name,
+    decimal Score,
+    string Reading,
+    string SupportingFactors,
+    string FactorContributions,
+    string Explanation);

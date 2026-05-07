@@ -58,7 +58,7 @@ public static class DatabaseSeeder
                 ScoreDate = SeedDate,
                 RawScore = rawScore,
                 WeightedScore = FactorScoreCalculator.CalculateWeightedScore(rawScore, item.Factor.Weight),
-                RegimeImpact = FactorScoreCalculator.ClassifyImpact(rawScore),
+                RegimeImpact = FactorScoreCalculator.ClassifyImpact(rawScore, item.Factor.Name),
                 Notes = "Seeded from the initial macro factor set."
             });
         }
