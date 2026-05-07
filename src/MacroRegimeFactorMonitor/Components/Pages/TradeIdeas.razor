@@ -1,0 +1,92 @@
+@page "/trade-ideas"
+@inject JournalService JournalService
+
+<PageTitle>Trade Ideas</PageTitle>
+
+<h1>Trade Idea Journal</h1>
+<p class="lede">Log discretionary ideas for review. The app intentionally has no broker integration or automatic trading.</p>
+
+<section class="card">
+    <h2>New idea</h2>
+    <EditForm Model="draft" OnValidSubmit="SaveAsync" FormName="trade-idea-form">
+        <DataAnnotationsValidator />
+        <div class="form-grid">
+            <label>
+                Idea date
+                <InputDate @bind-Value="draft.IdeaDate" />
+            </label>
+            <label>
+                Title
+                <InputText @bind-Value="draft.Title" />
+            </label>
+            <label>
+                Instrument
+                <InputText @bind-Value="draft.Instrument" />
+            </label>
+            <label>
+                Status
+                <InputSelect @bind-Value="draft.Status">
+                    <option>Watching</option>
+                    <option>Active</option>
+                    <option>Closed</option>
+                </InputSelect>
+            </label>
+            <label class="wide">
+                Thesis
+                <InputTextArea @bind-Value="draft.Thesis" />
+            </label>
+            <label class="wide">
+                Risk notes
+                <InputTextArea @bind-Value="draft.RiskNotes" />
+            </label>
+        </div>
+        <button type="submit">Save idea</button>
+    </EditForm>
+</section>
+
+<section class="card">
+    <h2>Saved ideas</h2>
+    @if (ideas is null)
+    {
+        <p>Loading ideas...</p>
+    }
+    else
+    {
+        @foreach (var idea in ideas)
+        {
+            <article class="journal-entry">
+                <div>
+                    <strong>@idea.Title</strong>
+                    <span class="pill">@idea.Status</span>
+                </div>
+                <p>@idea.IdeaDate.ToString("yyyy-MM-dd") · @idea.Instrument</p>
+                <p>@idea.Thesis</p>
+                <p><strong>Risk notes:</strong> @idea.RiskNotes</p>
+            </article>
+        }
+    }
+</section>
+
+@code {
+    private TradeIdea draft = NewDraft();
+    private List<TradeIdea>? ideas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ideas = await JournalService.GetTradeIdeasAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        await JournalService.AddTradeIdeaAsync(draft);
+        draft = NewDraft();
+        ideas = await JournalService.GetTradeIdeasAsync();
+    }
+
+    private static TradeIdea NewDraft() => new()
+    {
+        IdeaDate = DateOnly.FromDateTime(DateTime.UtcNow.Date),
+        Title = string.Empty,
+        Status = "Watching"
+    };
+}
