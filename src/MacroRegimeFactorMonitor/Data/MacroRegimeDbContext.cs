@@ -120,6 +120,20 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        ConfigureMacroFactor(modelBuilder);
+        ConfigureIndicator(modelBuilder);
+        ConfigureDataSource(modelBuilder);
+        ConfigureExternalSeries(modelBuilder);
+        ConfigureDataImportRun(modelBuilder);
+        ConfigureStartupSyncRun(modelBuilder);
+        ConfigureIndicatorObservation(modelBuilder);
+        ConfigureFactorScore(modelBuilder);
+        ConfigureWeeklyReview(modelBuilder);
+        ConfigureTradeIdea(modelBuilder);
+    }
+
+    private static void ConfigureMacroFactor(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<MacroFactor>(entity =>
         {
             entity.Property(factor => factor.Name).HasMaxLength(120).IsRequired();
@@ -127,7 +141,10 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
             entity.Property(factor => factor.Weight).HasPrecision(8, 4);
             entity.HasIndex(factor => factor.Name).IsUnique();
         });
+    }
 
+    private static void ConfigureIndicator(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<Indicator>(entity =>
         {
             entity.Property(indicator => indicator.Name).HasMaxLength(120).IsRequired();
@@ -140,7 +157,10 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
                 .HasForeignKey(indicator => indicator.MacroFactorId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+    }
 
+    private static void ConfigureDataSource(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<DataSource>(entity =>
         {
             entity.Property(source => source.Name).HasMaxLength(120).IsRequired();
@@ -149,7 +169,10 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
             entity.Property(source => source.Notes).HasDefaultValue(string.Empty);
             entity.Property(source => source.IsActive).HasDefaultValue(true);
         });
+    }
 
+    private static void ConfigureExternalSeries(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<ExternalSeries>(entity =>
         {
             entity.Property(series => series.ExternalSeriesId).HasMaxLength(120).IsRequired();
@@ -173,7 +196,10 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
                 .HasForeignKey(series => series.DataSourceId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+    }
 
+    private static void ConfigureDataImportRun(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<DataImportRun>(entity =>
         {
             entity.Property(run => run.Status).HasMaxLength(40).IsRequired();
@@ -186,8 +212,10 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
                 .HasForeignKey(run => run.DataSourceId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+    }
 
-
+    private static void ConfigureStartupSyncRun(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<StartupSyncRun>(entity =>
         {
             entity.Property(run => run.StartedAtUtc).IsRequired();
@@ -198,7 +226,10 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
             entity.HasIndex(run => run.StartedAtUtc);
             entity.HasIndex(run => run.Status);
         });
+    }
 
+    private static void ConfigureIndicatorObservation(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<IndicatorObservation>(entity =>
         {
             entity.Property(observation => observation.Value).HasPrecision(12, 4);
@@ -219,7 +250,10 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
                 .HasForeignKey(observation => observation.DataImportRunId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
+    }
 
+    private static void ConfigureFactorScore(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<FactorScore>(entity =>
         {
             entity.Property(score => score.RawScore).HasPrecision(8, 4);
@@ -231,13 +265,19 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
                 .HasForeignKey(score => score.MacroFactorId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+    }
 
+    private static void ConfigureWeeklyReview(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<WeeklyReview>(entity =>
         {
             entity.Property(review => review.RegimeAssessment).HasMaxLength(120).IsRequired();
             entity.HasIndex(review => review.WeekEnding).IsUnique();
         });
+    }
 
+    private static void ConfigureTradeIdea(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<TradeIdea>(entity =>
         {
             entity.Property(idea => idea.Title).HasMaxLength(160).IsRequired();

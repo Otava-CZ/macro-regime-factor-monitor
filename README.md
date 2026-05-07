@@ -28,7 +28,7 @@ Raw data -> measurable factor scores -> macro interpretation -> trade candidates
   - market complacency/mispricing
 - Weekly review page for manual macro notes.
 - Trade idea journal page with fields for thesis, entry trigger, invalidation, catalyst, max loss, time horizon, risk notes, and post-mortem.
-- Startup SQLite schema upgrade that adds v0.3 trade idea columns to existing local `macro-regime.db` files; PostgreSQL uses EF-created schema initialization for new databases.
+- Startup SQLite schema upgrade that adds v0.3 trade idea columns to existing local `macro-regime.db` files; PostgreSQL uses EF Core migrations.
 
 ## Development environment
 
@@ -99,7 +99,7 @@ dotnet user-secrets set "Database:Provider" "Postgres" --project .\src\MacroRegi
 dotnet user-secrets set "ConnectionStrings:MacroRegime" "Host=db.<project-ref>.supabase.co;Port=5432;Database=postgres;Username=postgres;Password=<placeholder-password>;SSL Mode=Require;Trust Server Certificate=true" --project .\src\MacroRegimeFactorMonitor\MacroRegimeFactorMonitor.csproj
 ```
 
-The startup path creates the EF model schema for a new database before seeding the sample monitor data. The legacy lightweight column upgrade remains SQLite-only and is not run against Postgres.
+The startup path applies EF Core migrations for Postgres or creates/upgrades the local SQLite schema before seeding the sample monitor data. The legacy lightweight column upgrade remains SQLite-only and is not run against Postgres.
 
 
 ## Startup synchronization safety
