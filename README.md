@@ -69,7 +69,8 @@ The app chooses its EF Core provider from configuration:
 
 - `Database:Provider = Postgres` uses the Npgsql PostgreSQL provider with `ConnectionStrings:MacroRegime`.
 - Any other value, a blank value, or a missing provider uses SQLite.
-- If `ConnectionStrings:MacroRegime` is blank or missing, the app falls back to the local SQLite connection string `Data Source=macro-regime.db`.
+- If SQLite is selected and `ConnectionStrings:MacroRegime` is blank or missing, the app falls back to the local SQLite connection string `Data Source=macro-regime.db`.
+- If Postgres is selected, `ConnectionStrings:MacroRegime` must be set. The app fails fast if it is missing or blank.
 
 `appsettings.json` intentionally does not contain a real database secret. Keep the local default on SQLite for normal development, and store any Supabase/Postgres connection string outside source control with .NET user secrets.
 
