@@ -15,14 +15,18 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
 
     public async Task ApplyStartupSchemaUpgradesAsync()
     {
-        await Database.EnsureCreatedAsync();
-
-        if (!Database.IsSqlite())
+        if (Database.IsNpgsql())
         {
+            await Database.MigrateAsync();
             return;
         }
 
-        await ApplySqliteSchemaUpgradesAsync();
+        await Database.EnsureCreatedAsync();
+
+        if (Database.IsSqlite())
+        {
+            await ApplySqliteSchemaUpgradesAsync();
+        }
     }
 
     private async Task ApplySqliteSchemaUpgradesAsync()
