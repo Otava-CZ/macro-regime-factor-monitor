@@ -8,7 +8,7 @@ The app keeps the original weighted scoring idea, but stores factors, indicators
 
 ## Features
 
-- Blazor dashboard showing the latest persisted factor scores.
+- Blazor dashboard showing the latest persisted measurable factor scores and derived macro pressure interpretations.
 - EF Core `DbContext` backed by SQLite.
 - Seed data for six initial macro factors:
   1. Inflation Pressure
@@ -61,6 +61,36 @@ weighted score = raw score * factor weight
 ```
 
 `direction` is `1` when higher values are constructive for risk assets and `-1` when higher values are a macro risk. Weighted scores are summed into category scores and a composite dashboard score.
+
+The six measurable factors remain:
+
+1. Inflation Pressure
+2. Inflation Breadth
+3. Energy Shock
+4. Growth Stress
+5. Fiscal/Treasury Stress
+6. Market Complacency
+
+## Factor scores vs. macro pressure interpretations
+
+The dashboard separates three ideas that can otherwise be confused:
+
+1. **Raw factor scoring direction**: the normalized score produced from an indicator's value, baseline, volatility, and `HigherIsRiskOn` setting.
+2. **Macro pressure interpretation**: a pressure-or-relief mapping used by the monitor to decide whether a factor is contributing to macro pressure.
+3. **Dashboard wording**: user-facing labels such as `Pressure rising`, `Mild pressure`, `Balanced`, `Relief`, and `Complacency pressure`.
+
+This app is a factor monitor, not a fixed scenario classifier. The four derived macro interpretations are:
+
+- Inflation/stagflation pressure
+- Fiscal/Treasury stress
+- Hard-landing pressure
+- Market complacency/mispricing
+
+For interpretation scoring, inflation pressure, inflation breadth, energy shock, growth stress, and fiscal/Treasury stress add pressure when their weighted factor score is negative. Market Complacency is intentionally different: low volatility can be good for risk assets in a narrow market sense, but this monitor treats unusually low volatility as potential complacency or mispricing pressure when the factor score indicates VIX is below its baseline. That prevents low VIX from appearing as generic support when the intended macro interpretation is building complacency/mispricing pressure.
+
+## Scope and trading limitations
+
+This project has no broker integration, order routing, execution workflow, or automatic trading. Trade ideas are journal entries only, and dashboard readings are monitoring inputs rather than trading instructions.
 
 ## Regime thresholds
 

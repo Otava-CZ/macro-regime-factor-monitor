@@ -32,7 +32,8 @@ else
     </section>
 
     <section class="card">
-        <h2>Factor Scores</h2>
+        <h2>Measurable Factor Scores</h2>
+        <p class="section-note">Raw and weighted scores retain each factor's scoring direction. The impact column translates those scores into macro pressure or relief wording for the monitor.</p>
         <table>
             <thead>
                 <tr>
@@ -40,24 +41,57 @@ else
                     <th>Category</th>
                     <th class="number">Raw</th>
                     <th class="number">Weighted</th>
+                    <th class="number">Pressure</th>
                     <th>Impact</th>
-                    <th>Notes</th>
+                    <th>Interpretation</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var score in snapshot.FactorScores)
+                @foreach (var contribution in snapshot.FactorContributions)
                 {
+                    var score = contribution.FactorScore;
                     <tr>
                         <td>@score.MacroFactor?.Name</td>
                         <td>@score.MacroFactor?.Category</td>
                         <td class="number">@score.RawScore</td>
                         <td class="number">@score.WeightedScore</td>
-                        <td><span class="pill">@score.RegimeImpact</span></td>
-                        <td>@score.Notes</td>
+                        <td class="number">@contribution.PressureScore</td>
+                        <td><span class="pill">@contribution.Reading</span></td>
+                        <td>@contribution.Explanation</td>
                     </tr>
                 }
             </tbody>
         </table>
+    </section>
+
+    <section class="card">
+        <h2>Macro Pressure Interpretations</h2>
+        <p class="section-note">Derived interpretations group the six measurable factors into four pressure readings without turning the monitor into a fixed scenario classifier.</p>
+        <div class="interpretation-list">
+            @foreach (var interpretation in snapshot.Interpretations)
+            {
+                <article>
+                    <div class="interpretation-header">
+                        <div>
+                            <h3>@interpretation.Name</h3>
+                            <p>@interpretation.Explanation</p>
+                        </div>
+                        <div class="interpretation-score">
+                            <span>Score</span>
+                            <strong>@interpretation.Score</strong>
+                            <span class="pill">@interpretation.Reading</span>
+                        </div>
+                    </div>
+                    <p class="contributor-label">Contributing measurable factors</p>
+                    <ul>
+                        @foreach (var contributor in interpretation.Contributors)
+                        {
+                            <li>@contributor.FactorScore.MacroFactor?.Name (@contributor.Reading, @contributor.PressureScore)</li>
+                        }
+                    </ul>
+                </article>
+            }
+        </div>
     </section>
 
     <section class="card">

@@ -18,11 +18,11 @@ public static class FactorScoreCalculator
 
     public static string ClassifyImpact(decimal rawScore) => rawScore switch
     {
-        >= 1.0m => "Risk-on support",
-        >= 0.25m => "Mild support",
-        <= -1.0m => "Risk-off pressure",
-        <= -0.25m => "Mild pressure",
-        _ => "Neutral"
+        >= 1.0m => "Positive factor score",
+        >= 0.25m => "Mild positive",
+        <= -1.0m => "Negative factor score",
+        <= -0.25m => "Mild negative",
+        _ => "Balanced"
     };
 
     public static string ClassifyRegime(decimal compositeScore) => compositeScore switch
