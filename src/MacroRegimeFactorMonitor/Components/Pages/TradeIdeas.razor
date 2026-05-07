@@ -24,6 +24,14 @@
                 <InputText @bind-Value="draft.Instrument" />
             </label>
             <label>
+                Macro regime
+                <InputText @bind-Value="draft.MacroRegime" />
+            </label>
+            <label>
+                Time horizon
+                <InputText @bind-Value="draft.TimeHorizon" />
+            </label>
+            <label>
                 Status
                 <InputSelect @bind-Value="draft.Status">
                     <option>Watching</option>
@@ -34,6 +42,18 @@
             <label class="wide">
                 Thesis
                 <InputTextArea @bind-Value="draft.Thesis" />
+            </label>
+            <label class="wide">
+                Macro pressure thesis
+                <InputTextArea @bind-Value="draft.PressureThesis" />
+            </label>
+            <label class="wide">
+                Entry trigger
+                <InputTextArea @bind-Value="draft.EntryTrigger" />
+            </label>
+            <label class="wide">
+                Exit plan
+                <InputTextArea @bind-Value="draft.ExitPlan" />
             </label>
             <label class="wide">
                 Risk notes
@@ -59,8 +79,12 @@
                     <strong>@idea.Title</strong>
                     <span class="pill">@idea.Status</span>
                 </div>
-                <p>@idea.IdeaDate.ToString("yyyy-MM-dd") · @idea.Instrument</p>
+                <p>@idea.IdeaDate.ToString("yyyy-MM-dd") · @idea.Instrument · @idea.MacroRegime</p>
                 <p>@idea.Thesis</p>
+                <p><strong>Macro pressure thesis:</strong> @idea.PressureThesis</p>
+                <p><strong>Time horizon:</strong> @idea.TimeHorizon</p>
+                <p><strong>Entry trigger:</strong> @idea.EntryTrigger</p>
+                <p><strong>Exit plan:</strong> @idea.ExitPlan</p>
                 <p><strong>Risk notes:</strong> @idea.RiskNotes</p>
             </article>
         }
@@ -87,6 +111,7 @@
     {
         IdeaDate = DateOnly.FromDateTime(DateTime.UtcNow.Date),
         Title = string.Empty,
-        Status = "Watching"
+        Status = "Watching",
+        TimeHorizon = "Manual review"
     };
 }

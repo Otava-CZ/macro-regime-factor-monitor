@@ -10,6 +10,7 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddDbContextFactory<MacroRegimeDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("MacroRegime") ?? "Data Source=macro-regime.db"));
+builder.Services.AddScoped<MacroPressureInterpreter>();
 builder.Services.AddScoped<FactorScoringService>();
 builder.Services.AddScoped<JournalService>();
 
@@ -30,6 +31,7 @@ await using (var scope = app.Services.CreateAsyncScope())
     var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<MacroRegimeDbContext>>();
     await using var db = await dbFactory.CreateDbContextAsync();
     await db.Database.EnsureCreatedAsync();
+    await DatabaseSchemaUpgrader.UpgradeAsync(db);
     await DatabaseSeeder.SeedAsync(db);
 }
 

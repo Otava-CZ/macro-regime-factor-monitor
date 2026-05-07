@@ -4,7 +4,7 @@
 <PageTitle>Macro Dashboard</PageTitle>
 
 <h1>Dashboard</h1>
-<p class="lede">Latest persisted macro factor scores from the SQLite database.</p>
+<p class="lede">Latest persisted factor scores and pressure-aware macro interpretations from the SQLite database.</p>
 
 @if (snapshot is null)
 {
@@ -40,7 +40,8 @@ else
                     <th>Category</th>
                     <th class="number">Raw</th>
                     <th class="number">Weighted</th>
-                    <th>Impact</th>
+                    <th>Risk-asset impact</th>
+                    <th>Macro pressure reading</th>
                     <th>Notes</th>
                 </tr>
             </thead>
@@ -53,11 +54,37 @@ else
                         <td class="number">@score.RawScore</td>
                         <td class="number">@score.WeightedScore</td>
                         <td><span class="pill">@score.RegimeImpact</span></td>
+                        <td>@DescribePressure(score)</td>
                         <td>@score.Notes</td>
                     </tr>
                 }
             </tbody>
         </table>
+    </section>
+
+    <section class="card">
+        <h2>Macro Pressure Interpretations</h2>
+        <p class="section-note">Factor scores are normalized for risk-asset support. These interpretations remap each scored factor into explicit macro pressure polarity.</p>
+        @if (snapshot.PressureInterpretations.Count == 0)
+        {
+            <p>No pressure interpretations are available for the scored factors.</p>
+        }
+        else
+        {
+            <div class="pressure-list">
+                @foreach (var interpretation in snapshot.PressureInterpretations)
+                {
+                    <article>
+                        <div>
+                            <strong>@interpretation.PressureName</strong>
+                            <span class="pill">@interpretation.Stance</span>
+                        </div>
+                        <p>@interpretation.Summary</p>
+                        <p><strong>Contributing scored factors:</strong> @(string.Join(", ", interpretation.ContributingFactors))</p>
+                    </article>
+                }
+            </div>
+        }
     </section>
 
     <section class="card">
@@ -76,6 +103,28 @@ else
 
 @code {
     private DashboardSnapshot? snapshot;
+
+    private static string DescribePressure(FactorScore score)
+    {
+        var name = score.MacroFactor?.Name;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return "No mapped pressure polarity.";
+        }
+
+        var pressureContribution = name.Equals("Market Complacency", StringComparison.OrdinalIgnoreCase)
+            ? score.WeightedScore
+            : -score.WeightedScore;
+
+        var direction = pressureContribution switch
+        {
+            >= 0.25m => "adds macro pressure",
+            <= -0.25m => "eases macro pressure",
+            _ => "is macro-pressure neutral"
+        };
+
+        return $"{name} {direction} ({pressureContribution}).";
+    }
 
     protected override async Task OnInitializedAsync()
     {

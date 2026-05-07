@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MacroRegimeFactorMonitor.Services;
 
-public sealed class FactorScoringService(IDbContextFactory<MacroRegimeDbContext> dbFactory)
+public sealed class FactorScoringService(IDbContextFactory<MacroRegimeDbContext> dbFactory, MacroPressureInterpreter pressureInterpreter)
 {
     public async Task<DashboardSnapshot> GetLatestSnapshotAsync()
     {
@@ -29,12 +29,15 @@ public sealed class FactorScoringService(IDbContextFactory<MacroRegimeDbContext>
             .OrderByDescending(score => Math.Abs(score.Score))
             .ToList();
 
+        var pressureInterpretations = pressureInterpreter.BuildInterpretations(scores);
+
         return new DashboardSnapshot(
             latestDate.Value,
             compositeScore,
             FactorScoreCalculator.ClassifyRegime(compositeScore),
             scores,
-            categoryScores);
+            categoryScores,
+            pressureInterpretations);
     }
 }
 
@@ -43,12 +46,14 @@ public sealed record DashboardSnapshot(
     decimal CompositeScore,
     string Regime,
     IReadOnlyList<FactorScore> FactorScores,
-    IReadOnlyList<CategoryScore> CategoryScores)
+    IReadOnlyList<CategoryScore> CategoryScores,
+    IReadOnlyList<MacroPressureInterpretation> PressureInterpretations)
 {
     public static DashboardSnapshot Empty { get; } = new(
         DateOnly.MinValue,
         0,
         "No scores yet",
+        [],
         [],
         []);
 }

@@ -77,6 +77,11 @@ public static class DatabaseSeeder
             Title = "Watch defensive equity factor exposure",
             Instrument = "Quality / low-volatility basket",
             Thesis = "Use the journal to track discretionary ideas suggested by the macro dashboard. This is not an execution or broker integration.",
+            MacroRegime = "Defensive Slowdown",
+            PressureThesis = "Inflation, energy, and Treasury pressure argue for careful sizing and manual review.",
+            TimeHorizon = "Multi-week",
+            EntryTrigger = "Review after weekly macro pressure update confirms persistent defensive conditions.",
+            ExitPlan = "Close the journal idea if growth improves and inflation pressure cools.",
             Status = "Watching",
             RiskNotes = "Reassess if growth data improves or inflation pressure cools."
         });
