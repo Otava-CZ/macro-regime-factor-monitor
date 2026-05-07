@@ -26,8 +26,28 @@ else
             <strong>@snapshot.Regime</strong>
         </div>
         <div class="metric-card">
-            <span>Composite score</span>
+            <span>Composite factor score</span>
             <strong>@snapshot.CompositeScore</strong>
+        </div>
+        <div class="metric-card">
+            <span>Macro pressure</span>
+            <strong>@snapshot.PressureInterpretation.PressureRegime</strong>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Macro Pressure Interpretation</h2>
+        <p>@snapshot.PressureInterpretation.Summary</p>
+        <p><strong>Interpretation score:</strong> @snapshot.PressureInterpretation.InterpretationScore</p>
+        <div class="category-list">
+            @foreach (var contribution in snapshot.PressureInterpretation.ContributingFactors)
+            {
+                <div>
+                    <span>@contribution.FactorName (@contribution.Category)</span>
+                    <strong>@contribution.PressureScore</strong>
+                    <small>@contribution.Interpretation</small>
+                </div>
+            }
         </div>
     </section>
 
@@ -61,7 +81,7 @@ else
     </section>
 
     <section class="card">
-        <h2>Category Signals</h2>
+        <h2>Category Factor Signals</h2>
         <div class="category-list">
             @foreach (var category in snapshot.CategoryScores)
             {

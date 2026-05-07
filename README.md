@@ -18,7 +18,8 @@ The app keeps the original weighted scoring idea, but stores factors, indicators
   5. Fiscal/Treasury Stress
   6. Market Complacency
 - Simple weekly review page.
-- Simple trade idea journal page.
+- Trade idea journal page that preserves entry trigger, invalidation, catalyst, max-loss, time-horizon, post-mortem, and risk-note fields.
+- Pressure-aware dashboard interpretation that distinguishes factor score semantics from macro pressure polarity.
 
 ## Development environment
 
@@ -60,7 +61,17 @@ raw score = ((value - baseline) / volatility) * direction
 weighted score = raw score * factor weight
 ```
 
-`direction` is `1` when higher values are constructive for risk assets and `-1` when higher values are a macro risk. Weighted scores are summed into category scores and a composite dashboard score.
+`direction` is `1` when higher values are constructive for risk assets and `-1` when higher values are a macro risk. Weighted scores are summed into category scores and a composite dashboard factor score.
+
+The factor score is not always the same as macro pressure. The dashboard separately runs the latest factor scores through `MacroPressureInterpreter`, which applies an explicit pressure-polarity map:
+
+- Inflation Pressure, Inflation Breadth, Energy Shock, Growth Stress, and Fiscal/Treasury Stress add macro pressure when their weighted factor scores are risk-off.
+- Market Complacency is intentionally inverted for pressure interpretation: a low-volatility/complacent market can produce a constructive factor score, but it is treated as market complacency and mispricing pressure.
+- Only factors included in the pressure-polarity map are listed as macro pressure contributors, so experimental or future factors do not appear in `ContributingFactors` until they are intentionally mapped.
+
+## Continuous integration
+
+GitHub Actions runs a single .NET 8 workflow for pull requests and pushes targeting `develop` or `main`. The workflow restores, builds, and tests `MacroRegimeFactorMonitor.sln` in Release configuration.
 
 ## Regime thresholds
 

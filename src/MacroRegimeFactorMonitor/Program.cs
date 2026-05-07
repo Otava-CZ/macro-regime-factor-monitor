@@ -10,6 +10,7 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddDbContextFactory<MacroRegimeDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("MacroRegime") ?? "Data Source=macro-regime.db"));
+builder.Services.AddSingleton<MacroPressureInterpreter>();
 builder.Services.AddScoped<FactorScoringService>();
 builder.Services.AddScoped<JournalService>();
 

@@ -36,6 +36,30 @@
                 <InputTextArea @bind-Value="draft.Thesis" />
             </label>
             <label class="wide">
+                Entry trigger
+                <InputTextArea @bind-Value="draft.EntryTrigger" />
+            </label>
+            <label class="wide">
+                Invalidation
+                <InputTextArea @bind-Value="draft.Invalidation" />
+            </label>
+            <label class="wide">
+                Catalyst
+                <InputTextArea @bind-Value="draft.Catalyst" />
+            </label>
+            <label>
+                Max loss
+                <InputNumber @bind-Value="draft.MaxLoss" />
+            </label>
+            <label>
+                Time horizon
+                <InputText @bind-Value="draft.TimeHorizon" />
+            </label>
+            <label class="wide">
+                Post-mortem
+                <InputTextArea @bind-Value="draft.PostMortem" />
+            </label>
+            <label class="wide">
                 Risk notes
                 <InputTextArea @bind-Value="draft.RiskNotes" />
             </label>
@@ -61,6 +85,11 @@
                 </div>
                 <p>@idea.IdeaDate.ToString("yyyy-MM-dd") · @idea.Instrument</p>
                 <p>@idea.Thesis</p>
+                <p><strong>Entry trigger:</strong> @idea.EntryTrigger</p>
+                <p><strong>Invalidation:</strong> @idea.Invalidation</p>
+                <p><strong>Catalyst:</strong> @idea.Catalyst</p>
+                <p><strong>Max loss:</strong> @(idea.MaxLoss?.ToString("0.##") ?? "Not set") · <strong>Time horizon:</strong> @idea.TimeHorizon</p>
+                <p><strong>Post-mortem:</strong> @idea.PostMortem</p>
                 <p><strong>Risk notes:</strong> @idea.RiskNotes</p>
             </article>
         }

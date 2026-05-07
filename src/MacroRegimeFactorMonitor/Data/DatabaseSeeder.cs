@@ -78,6 +78,12 @@ public static class DatabaseSeeder
             Instrument = "Quality / low-volatility basket",
             Thesis = "Use the journal to track discretionary ideas suggested by the macro dashboard. This is not an execution or broker integration.",
             Status = "Watching",
+            EntryTrigger = "Consider only after the dashboard confirms persistent pressure-aware defensive signals.",
+            Invalidation = "Growth momentum improves while inflation and rates pressure fade.",
+            Catalyst = "Weekly review identifies renewed macro pressure or market complacency.",
+            MaxLoss = 1.50m,
+            TimeHorizon = "One to four weeks",
+            PostMortem = "Record whether the macro pressure signal translated into factor outperformance.",
             RiskNotes = "Reassess if growth data improves or inflation pressure cools."
         });
 
