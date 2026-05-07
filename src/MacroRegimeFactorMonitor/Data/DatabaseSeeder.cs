@@ -22,7 +22,7 @@ public static class DatabaseSeeder
             CreateFactor("Energy Shock", "Commodities", "Captures oil and energy pressure that can spill into inflation expectations.", 0.15m, false, "WTI Crude Oil", "EIA", "USD/bbl", 75m, 12m, 88m),
             CreateFactor("Growth Stress", "Growth", "Summarizes downside stress in activity and labor-market momentum.", 0.20m, true, "ISM Manufacturing PMI", "ISM", "Index", 50m, 2m, 48.6m),
             CreateFactor("Fiscal/Treasury Stress", "Rates", "Monitors Treasury-market and fiscal financing stress.", 0.13m, false, "10Y Treasury Term Premium", "NY Fed", "%", 0.25m, 0.35m, 0.72m),
-            CreateFactor("Market Complacency", "Markets", "Identifies whether risk pricing appears too relaxed versus macro risk.", 0.12m, false, "VIX Index", "Cboe", "Index", 18m, 5m, 14.2m)
+            CreateFactor("Market Complacency", "Markets", "Identifies whether risk pricing appears too relaxed versus macro risk; lower volatility means more complacency risk.", 0.12m, true, "VIX Index", "Cboe", "Index", 18m, 5m, 14.2m)
         };
 
         db.MacroFactors.AddRange(factors.Select(item => item.Factor));
@@ -66,9 +66,9 @@ public static class DatabaseSeeder
         db.WeeklyReviews.Add(new WeeklyReview
         {
             WeekEnding = SeedDate,
-            RegimeAssessment = "Defensive Slowdown",
-            KeyDevelopments = "Seed data shows inflation, energy, and rates stress offsetting growth momentum.",
-            RisksToWatch = "Watch whether inflation breadth narrows and whether Treasury stress eases."
+            RegimeAssessment = "Macro interpretation watch",
+            KeyDevelopments = "Seed data preserves six measurable factor records before deriving inflation/stagflation, fiscal/Treasury, hard-landing, and market-complacency interpretations.",
+            RisksToWatch = "Watch whether raw data changes the measurable factor scores before translating them into trade-candidate interpretations."
         });
 
         db.TradeIdeas.Add(new TradeIdea
@@ -76,7 +76,7 @@ public static class DatabaseSeeder
             IdeaDate = SeedDate,
             Title = "Watch defensive equity factor exposure",
             Instrument = "Quality / low-volatility basket",
-            Thesis = "Use the journal to track discretionary ideas suggested by the macro dashboard. This is not an execution or broker integration.",
+            Thesis = "Use the journal to track discretionary trade candidates suggested after raw data is scored as measurable factors and translated into macro interpretations. This is not an execution or broker integration.",
             Status = "Watching",
             RiskNotes = "Reassess if growth data improves or inflation pressure cools."
         });

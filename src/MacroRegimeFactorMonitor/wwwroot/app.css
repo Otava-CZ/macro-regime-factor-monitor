@@ -199,3 +199,23 @@ button {
         padding: 1rem;
     }
 }
+
+.section-note {
+    color: #64748b;
+    margin-top: -0.5rem;
+}
+
+.interpretation-row {
+    gap: 1rem;
+}
+
+.interpretation-row span,
+.number-stack {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.interpretation-row small,
+.number-stack small {
+    color: #64748b;
+}

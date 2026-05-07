@@ -4,7 +4,7 @@
 <PageTitle>Macro Dashboard</PageTitle>
 
 <h1>Dashboard</h1>
-<p class="lede">Latest persisted macro factor scores from the SQLite database.</p>
+<p class="lede">Latest persisted measurable factor scores from SQLite, then derived macro interpretations for trade-candidate research.</p>
 
 @if (snapshot is null)
 {
@@ -32,7 +32,28 @@ else
     </section>
 
     <section class="card">
-        <h2>Factor Scores</h2>
+        <h2>Macro Interpretations</h2>
+        <p class="section-note">Derived from the six measurable factor scores; these are interpretations, not replacement factor records or fixed scenarios.</p>
+        <div class="category-list">
+            @foreach (var interpretation in snapshot.MacroInterpretations)
+            {
+                <div class="interpretation-row">
+                    <span>
+                        <strong>@interpretation.Name</strong>
+                        <small>@interpretation.Description</small>
+                        <small>Source factors: @string.Join(", ", interpretation.SourceFactors)</small>
+                    </span>
+                    <span class="number-stack">
+                        <strong>@interpretation.PressureScore</strong>
+                        <small>@interpretation.Signal</small>
+                    </span>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Measurable Factor Scores</h2>
         <table>
             <thead>
                 <tr>
@@ -61,7 +82,7 @@ else
     </section>
 
     <section class="card">
-        <h2>Category Signals</h2>
+        <h2>Measurable Category Signals</h2>
         <div class="category-list">
             @foreach (var category in snapshot.CategoryScores)
             {
