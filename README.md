@@ -74,6 +74,10 @@ weighted score = raw score * factor weight
 
 `direction` is `1` when higher values are constructive for risk assets and `-1` when higher values are a macro risk. Weighted scores are summed into category scores and a composite dashboard score.
 
+A measurable factor score is therefore the data-backed layer of the dashboard: one observed indicator is compared with its baseline and volatility, direction-adjusted, and weighted by the factor's configured importance. The factor table also shows a pressure contribution so the user can see whether each scored factor is adding macro pressure, providing relief, or remaining balanced.
+
+Dashboard factor impact wording uses pressure-aware labels: `Pressure rising`, `Mild pressure`, `Relief`, `Balanced`, and the Market Complacency-specific `Complacency pressure`.
+
 ## Macro interpretation approach
 
 The dashboard keeps the six measurable factor scores visible and then derives interpretation readings from them:
@@ -85,7 +89,9 @@ The dashboard keeps the six measurable factor scores visible and then derives in
 | hard-landing pressure | Growth Stress |
 | market complacency/mispricing | Market Complacency |
 
-These readings are decision-support context for a human user. They are not generic-only regime labels, not trading signals, and not automated execution instructions.
+Each macro pressure interpretation aggregates only the measurable factors that were actually scored for that interpretation, then explains why those factor-level pressure contributions support the card reading. These readings are decision-support context for a human user. They are not generic-only regime labels, not trading signals, and not automated execution instructions.
+
+Market Complacency is intentionally handled as a special case. A low-volatility reading can indicate that markets are underpricing macro risks, so the dashboard shows it as market complacency/mispricing pressure instead of a bullish signal.
 
 ## Composite regime thresholds
 

@@ -16,14 +16,60 @@ public static class FactorScoreCalculator
     public static decimal CalculateWeightedScore(decimal rawScore, decimal weight) =>
         Math.Round(rawScore * weight, 2);
 
-    public static string ClassifyImpact(decimal rawScore) => rawScore switch
+    public static string ClassifyImpact(decimal pressureContribution, string factorName = "") =>
+        ClassifyPressureImpact(pressureContribution, factorName);
+
+    public static decimal CalculatePressureContribution(decimal weightedScore, string? factorName)
     {
-        >= 1.0m => "Risk-on support",
-        >= 0.25m => "Mild support",
-        <= -1.0m => "Risk-off pressure",
-        <= -0.25m => "Mild pressure",
-        _ => "Neutral"
-    };
+        var contribution = IsMarketComplacency(factorName)
+            ? weightedScore
+            : -weightedScore;
+
+        return Math.Round(contribution, 2);
+    }
+
+    public static string ClassifyPressureImpact(decimal pressureContribution, string? factorName = null)
+    {
+        if (IsMarketComplacency(factorName))
+        {
+            return pressureContribution switch
+            {
+                >= 0.05m => "Complacency pressure",
+                >= 0.02m => "Mild complacency pressure",
+                <= -0.02m => "Relief",
+                _ => "Balanced"
+            };
+        }
+
+        return pressureContribution switch
+        {
+            >= 0.15m => "Pressure rising",
+            >= 0.05m => "Mild pressure",
+            <= -0.05m => "Relief",
+            _ => "Balanced"
+        };
+    }
+
+    public static string ExplainPressureImpact(decimal pressureContribution, string? factorName = null)
+    {
+        if (IsMarketComplacency(factorName))
+        {
+            return pressureContribution switch
+            {
+                >= 0.02m => "Low volatility/complacency can underprice macro risk, so it is treated as mispricing pressure rather than a bullish signal.",
+                <= -0.02m => "Volatility is no longer complacent, reducing the specific market complacency/mispricing pressure reading.",
+                _ => "The complacency factor is close to baseline, so it is not adding clear pressure or relief."
+            };
+        }
+
+        return pressureContribution switch
+        {
+            >= 0.15m => "This factor is materially adding macro pressure after weighting.",
+            >= 0.05m => "This factor is modestly adding macro pressure after weighting.",
+            <= -0.05m => "This factor is contributing macro pressure relief after weighting.",
+            _ => "This factor is close to balanced after weighting."
+        };
+    }
 
     public static string ClassifyRegime(decimal compositeScore) => compositeScore switch
     {
@@ -33,4 +79,7 @@ public static class FactorScoreCalculator
         <= -0.4m => "Defensive Slowdown",
         _ => "Neutral / Transition"
     };
+
+    private static bool IsMarketComplacency(string? factorName) =>
+        string.Equals(factorName, "Market Complacency", StringComparison.OrdinalIgnoreCase);
 }
