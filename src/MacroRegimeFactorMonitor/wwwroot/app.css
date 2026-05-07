@@ -1,0 +1,201 @@
+:root {
+    color-scheme: light;
+    font-family: Inter, Segoe UI, system-ui, -apple-system, sans-serif;
+    background: #f4f7fb;
+    color: #14213d;
+}
+
+body {
+    margin: 0;
+}
+
+.shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+.sidebar {
+    background: #0f172a;
+    color: #f8fafc;
+    padding: 1.5rem;
+    width: 260px;
+}
+
+.brand {
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 2rem;
+}
+
+nav {
+    display: grid;
+    gap: 0.5rem;
+}
+
+nav a {
+    border-radius: 0.75rem;
+    color: #cbd5e1;
+    padding: 0.75rem 1rem;
+    text-decoration: none;
+}
+
+nav a.active,
+nav a:hover {
+    background: #1e293b;
+    color: #ffffff;
+}
+
+.content {
+    flex: 1;
+    padding: 2rem;
+}
+
+h1,
+h2 {
+    margin-top: 0;
+}
+
+.lede {
+    color: #475569;
+    margin-bottom: 1.5rem;
+}
+
+.summary-grid,
+.form-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.metric-card,
+.card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    box-shadow: 0 10px 25px rgb(15 23 42 / 6%);
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+}
+
+.metric-card span {
+    color: #64748b;
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 0.35rem;
+}
+
+.metric-card strong {
+    font-size: 1.4rem;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+th,
+td {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.75rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    color: #475569;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+}
+
+.number {
+    text-align: right;
+}
+
+.pill {
+    background: #e0f2fe;
+    border-radius: 999px;
+    color: #075985;
+    display: inline-block;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.65rem;
+}
+
+.category-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.category-list div,
+.journal-entry {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1rem;
+}
+
+.category-list div {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+}
+
+label {
+    color: #334155;
+    display: grid;
+    font-weight: 600;
+    gap: 0.35rem;
+}
+
+label.wide {
+    grid-column: 1 / -1;
+}
+
+input,
+select,
+textarea {
+    border: 1px solid #cbd5e1;
+    border-radius: 0.6rem;
+    font: inherit;
+    padding: 0.65rem 0.75rem;
+}
+
+textarea {
+    min-height: 6rem;
+}
+
+button {
+    background: #2563eb;
+    border: 0;
+    border-radius: 0.65rem;
+    color: white;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+}
+
+.journal-entry + .journal-entry {
+    margin-top: 1rem;
+}
+
+.journal-entry div {
+    align-items: center;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+}
+
+@media (max-width: 760px) {
+    .shell {
+        display: block;
+    }
+
+    .sidebar {
+        width: auto;
+    }
+
+    .content {
+        padding: 1rem;
+    }
+}

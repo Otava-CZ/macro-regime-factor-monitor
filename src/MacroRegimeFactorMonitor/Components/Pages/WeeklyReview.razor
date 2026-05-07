@@ -1,0 +1,78 @@
+@page "/weekly-review"
+@inject JournalService JournalService
+
+<PageTitle>Weekly Review</PageTitle>
+
+<h1>Weekly Review</h1>
+<p class="lede">Capture a simple weekly macro assessment. Entries are stored in SQLite.</p>
+
+<section class="card">
+    <h2>New review</h2>
+    <EditForm Model="draft" OnValidSubmit="SaveAsync" FormName="weekly-review-form">
+        <DataAnnotationsValidator />
+        <div class="form-grid">
+            <label>
+                Week ending
+                <InputDate @bind-Value="draft.WeekEnding" />
+            </label>
+            <label>
+                Regime assessment
+                <InputText @bind-Value="draft.RegimeAssessment" />
+            </label>
+            <label class="wide">
+                Key developments
+                <InputTextArea @bind-Value="draft.KeyDevelopments" />
+            </label>
+            <label class="wide">
+                Risks to watch
+                <InputTextArea @bind-Value="draft.RisksToWatch" />
+            </label>
+        </div>
+        <button type="submit">Save review</button>
+    </EditForm>
+</section>
+
+<section class="card">
+    <h2>Saved reviews</h2>
+    @if (reviews is null)
+    {
+        <p>Loading reviews...</p>
+    }
+    else
+    {
+        @foreach (var review in reviews)
+        {
+            <article class="journal-entry">
+                <div>
+                    <strong>@review.WeekEnding.ToString("yyyy-MM-dd")</strong>
+                    <span class="pill">@review.RegimeAssessment</span>
+                </div>
+                <p>@review.KeyDevelopments</p>
+                <p><strong>Risks:</strong> @review.RisksToWatch</p>
+            </article>
+        }
+    }
+</section>
+
+@code {
+    private WeeklyReview draft = NewDraft();
+    private List<WeeklyReview>? reviews;
+
+    protected override async Task OnInitializedAsync()
+    {
+        reviews = await JournalService.GetWeeklyReviewsAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        await JournalService.AddWeeklyReviewAsync(draft);
+        draft = NewDraft();
+        reviews = await JournalService.GetWeeklyReviewsAsync();
+    }
+
+    private static WeeklyReview NewDraft() => new()
+    {
+        WeekEnding = DateOnly.FromDateTime(DateTime.UtcNow.Date),
+        RegimeAssessment = "Neutral / Transition"
+    };
+}

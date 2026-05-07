@@ -1,6 +1,24 @@
 # Macro Regime Factor Monitor
 
-A small .NET 8 MVP that scores macro and market factors, aggregates them into category signals, and classifies the current macro regime from a weighted composite score.
+A small .NET 8 ASP.NET Core Blazor app for tracking macro regime factor scores, weekly review notes, and trade idea journal entries.
+
+The app keeps the original weighted scoring idea, but stores factors, indicators, observations, scores, weekly reviews, and trade ideas in SQLite through EF Core.
+
+> Scope note: this is a monitoring and journaling app only. It does not include broker integration or automatic trading.
+
+## Features
+
+- Blazor dashboard showing the latest persisted factor scores.
+- EF Core `DbContext` backed by SQLite.
+- Seed data for six initial macro factors:
+  1. Inflation Pressure
+  2. Inflation Breadth
+  3. Energy Shock
+  4. Growth Stress
+  5. Fiscal/Treasury Stress
+  6. Market Complacency
+- Simple weekly review page.
+- Simple trade idea journal page.
 
 ## Development environment
 
@@ -10,45 +28,39 @@ This repository includes a Dev Container definition that uses the official .NET 
 "image": "mcr.microsoft.com/devcontainers/dotnet:8.0"
 ```
 
-Open the repository in a Dev Container so `dotnet` is available for restore, build, and run commands.
+Open the repository in the Dev Container so `dotnet` is available for restore, build, and run commands.
 
-## Run the MVP
+## Run on Windows
 
-```bash
-dotnet run --project src/MacroRegimeFactorMonitor/MacroRegimeFactorMonitor.csproj
-```
+1. Install the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
+2. Open PowerShell in the repository root.
+3. Restore and build the solution:
 
-By default, the app reads `data/sample-factors.csv`. To evaluate another factor file, pass its path as the first argument:
+   ```powershell
+   dotnet restore
+   dotnet build
+   ```
 
-```bash
-dotnet run --project src/MacroRegimeFactorMonitor/MacroRegimeFactorMonitor.csproj -- path/to/factors.csv
-```
+4. Run the Blazor app:
 
-## Input format
+   ```powershell
+   dotnet run --project .\src\MacroRegimeFactorMonitor\MacroRegimeFactorMonitor.csproj
+   ```
 
-The monitor expects a CSV with the following columns:
+5. Open the local URL printed by `dotnet run`, such as `https://localhost:5001` or `http://localhost:5000`.
 
-| Column | Description |
-| --- | --- |
-| `Date` | Observation date. The monitor evaluates the latest date in the file. |
-| `Factor` | Human-readable factor name. |
-| `Category` | Group used for category-level aggregation. |
-| `Value` | Current factor value. |
-| `Baseline` | Neutral or expected value for the factor. |
-| `Volatility` | Scaling denominator used to convert the factor into a z-score. |
-| `HigherIsRiskOn` | `true` when higher values are constructive for risk assets; `false` when lower values are constructive. |
-| `Weight` | Contribution multiplier applied to the factor z-score. |
+On first startup, the app creates a local SQLite database file named `macro-regime.db` in the working directory and seeds it with the initial macro factors, one indicator per factor, latest observations, factor scores, a sample weekly review, and a sample trade idea.
 
 ## Scoring approach
 
-For each latest-date factor, the MVP computes:
+For each seeded factor, the app computes a normalized raw score from its indicator observation:
 
 ```text
-z-score = ((Value - Baseline) / Volatility) * direction
-contribution = z-score * Weight
+raw score = ((value - baseline) / volatility) * direction
+weighted score = raw score * factor weight
 ```
 
-`direction` is `1` when `HigherIsRiskOn` is true and `-1` otherwise. Contributions are summed into category scores and a total composite score.
+`direction` is `1` when higher values are constructive for risk assets and `-1` when higher values are a macro risk. Weighted scores are summed into category scores and a composite dashboard score.
 
 ## Regime thresholds
 

@@ -1,0 +1,84 @@
+@page "/"
+@inject FactorScoringService ScoringService
+
+<PageTitle>Macro Dashboard</PageTitle>
+
+<h1>Dashboard</h1>
+<p class="lede">Latest persisted macro factor scores from the SQLite database.</p>
+
+@if (snapshot is null)
+{
+    <p>Loading scores...</p>
+}
+else if (snapshot.FactorScores.Count == 0)
+{
+    <section class="card">No factor scores are available yet.</section>
+}
+else
+{
+    <section class="summary-grid">
+        <div class="metric-card">
+            <span>As of</span>
+            <strong>@snapshot.AsOfDate.ToString("yyyy-MM-dd")</strong>
+        </div>
+        <div class="metric-card">
+            <span>Regime</span>
+            <strong>@snapshot.Regime</strong>
+        </div>
+        <div class="metric-card">
+            <span>Composite score</span>
+            <strong>@snapshot.CompositeScore</strong>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Factor Scores</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Factor</th>
+                    <th>Category</th>
+                    <th class="number">Raw</th>
+                    <th class="number">Weighted</th>
+                    <th>Impact</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var score in snapshot.FactorScores)
+                {
+                    <tr>
+                        <td>@score.MacroFactor?.Name</td>
+                        <td>@score.MacroFactor?.Category</td>
+                        <td class="number">@score.RawScore</td>
+                        <td class="number">@score.WeightedScore</td>
+                        <td><span class="pill">@score.RegimeImpact</span></td>
+                        <td>@score.Notes</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+
+    <section class="card">
+        <h2>Category Signals</h2>
+        <div class="category-list">
+            @foreach (var category in snapshot.CategoryScores)
+            {
+                <div>
+                    <span>@category.Category</span>
+                    <strong>@category.Score</strong>
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    private DashboardSnapshot? snapshot;
+
+    protected override async Task OnInitializedAsync()
+    {
+        snapshot = await ScoringService.GetLatestSnapshotAsync();
+    }
+}
