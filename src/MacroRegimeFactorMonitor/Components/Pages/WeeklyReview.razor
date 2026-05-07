@@ -55,8 +55,8 @@
 </section>
 
 @code {
-    private WeeklyReview draft = NewDraft();
-    private List<WeeklyReview>? reviews;
+    private MacroRegimeFactorMonitor.Domain.WeeklyReview draft = NewDraft();
+    private List<MacroRegimeFactorMonitor.Domain.WeeklyReview>? reviews;
 
     protected override async Task OnInitializedAsync()
     {
@@ -70,7 +70,7 @@
         reviews = await JournalService.GetWeeklyReviewsAsync();
     }
 
-    private static WeeklyReview NewDraft() => new()
+    private static MacroRegimeFactorMonitor.Domain.WeeklyReview NewDraft() => new()
     {
         WeekEnding = DateOnly.FromDateTime(DateTime.UtcNow.Date),
         RegimeAssessment = "Neutral / Transition"
