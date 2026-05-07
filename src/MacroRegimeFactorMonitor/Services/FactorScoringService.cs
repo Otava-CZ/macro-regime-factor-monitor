@@ -49,19 +49,19 @@ public static class MacroInterpretationScoring
         new(
             "inflation/stagflation pressure",
             ["Inflation Pressure", "Inflation Breadth", "Energy Shock"],
-            invertScores: true),
+            InvertScores: true),
         new(
             "fiscal/Treasury stress",
             ["Fiscal/Treasury Stress"],
-            invertScores: true),
+            InvertScores: true),
         new(
             "hard-landing pressure",
             ["Growth Stress"],
-            invertScores: true),
+            InvertScores: true),
         new(
             "market complacency/mispricing",
             ["Market Complacency"],
-            invertScores: false)
+            InvertScores: false)
     ];
 
     public static IReadOnlyList<MacroInterpretation> Build(IReadOnlyList<FactorScore> scores)
