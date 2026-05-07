@@ -4,7 +4,7 @@
 <PageTitle>Macro Dashboard</PageTitle>
 
 <h1>Dashboard</h1>
-<p class="lede">Latest persisted macro factor scores from the SQLite database.</p>
+<p class="lede">Raw data flows into six measurable factor scores, then into explicit macro interpretations, then into manual trade candidates.</p>
 
 @if (snapshot is null)
 {
@@ -22,12 +22,33 @@ else
             <strong>@snapshot.AsOfDate.ToString("yyyy-MM-dd")</strong>
         </div>
         <div class="metric-card">
-            <span>Regime</span>
-            <strong>@snapshot.Regime</strong>
+            <span>Primary macro interpretation</span>
+            <strong>@snapshot.PrimaryMacroInterpretation</strong>
         </div>
         <div class="metric-card">
             <span>Composite score</span>
             <strong>@snapshot.CompositeScore</strong>
+        </div>
+        <div class="metric-card">
+            <span>Composite regime label</span>
+            <strong>@snapshot.CompositeRegimeLabel</strong>
+        </div>
+    </section>
+
+
+    <section class="card">
+        <h2>Derived Macro Interpretations</h2>
+        <p class="section-note">Interpretations are derived from the six measurable factors; they do not replace the factor monitor or create automatic trading decisions.</p>
+        <div class="interpretation-grid">
+            @foreach (var interpretation in snapshot.MacroInterpretations)
+            {
+                <article>
+                    <span>@interpretation.Name</span>
+                    <strong>@interpretation.Reading</strong>
+                    <p>Score: @interpretation.Score</p>
+                    <p>Derived from: @interpretation.SupportingFactors</p>
+                </article>
+            }
         </div>
     </section>
 

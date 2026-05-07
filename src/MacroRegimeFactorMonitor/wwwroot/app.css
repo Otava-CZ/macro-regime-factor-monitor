@@ -199,3 +199,33 @@ button {
         padding: 1rem;
     }
 }
+
+.section-note {
+    color: #64748b;
+    margin-top: -0.5rem;
+}
+
+.interpretation-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.interpretation-grid article {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1rem;
+}
+
+.interpretation-grid span {
+    color: #64748b;
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+}
+
+.interpretation-grid strong {
+    display: block;
+    margin-bottom: 0.75rem;
+}

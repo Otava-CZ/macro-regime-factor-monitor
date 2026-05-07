@@ -1,3 +1,4 @@
+using System.Data;
 using MacroRegimeFactorMonitor.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +12,63 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
     public DbSet<FactorScore> FactorScores => Set<FactorScore>();
     public DbSet<WeeklyReview> WeeklyReviews => Set<WeeklyReview>();
     public DbSet<TradeIdea> TradeIdeas => Set<TradeIdea>();
+
+    public async Task ApplyStartupSchemaUpgradesAsync()
+    {
+        await Database.EnsureCreatedAsync();
+
+        if (!Database.IsSqlite())
+        {
+            return;
+        }
+
+        var existingColumns = await GetTableColumnsAsync("TradeIdeas");
+        if (existingColumns.Count == 0)
+        {
+            return;
+        }
+
+        var v03Columns = new Dictionary<string, string>
+        {
+            [nameof(TradeIdea.EntryTrigger)] = "TEXT NOT NULL DEFAULT ''",
+            [nameof(TradeIdea.Invalidation)] = "TEXT NOT NULL DEFAULT ''",
+            [nameof(TradeIdea.Catalyst)] = "TEXT NOT NULL DEFAULT ''",
+            [nameof(TradeIdea.MaxLoss)] = "TEXT NOT NULL DEFAULT ''",
+            [nameof(TradeIdea.TimeHorizon)] = "TEXT NOT NULL DEFAULT ''",
+            [nameof(TradeIdea.PostMortem)] = "TEXT NOT NULL DEFAULT ''"
+        };
+
+        foreach (var (columnName, columnDefinition) in v03Columns)
+        {
+            if (existingColumns.Contains(columnName))
+            {
+                continue;
+            }
+
+            await Database.ExecuteSqlRawAsync($"ALTER TABLE TradeIdeas ADD COLUMN {columnName} {columnDefinition};");
+        }
+    }
+
+    private async Task<HashSet<string>> GetTableColumnsAsync(string tableName)
+    {
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var connection = Database.GetDbConnection();
+
+        if (connection.State != ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA table_info('{tableName.Replace("'", "''")}');";
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            columns.Add(reader.GetString(1));
+        }
+
+        return columns;
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -68,6 +126,12 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
             entity.Property(idea => idea.Title).HasMaxLength(160).IsRequired();
             entity.Property(idea => idea.Instrument).HasMaxLength(80);
             entity.Property(idea => idea.Status).HasMaxLength(40);
+            entity.Property(idea => idea.EntryTrigger).HasMaxLength(500);
+            entity.Property(idea => idea.Invalidation).HasMaxLength(500);
+            entity.Property(idea => idea.Catalyst).HasMaxLength(500);
+            entity.Property(idea => idea.MaxLoss).HasMaxLength(120);
+            entity.Property(idea => idea.TimeHorizon).HasMaxLength(120);
+            entity.Property(idea => idea.PostMortem).HasMaxLength(1000);
         });
     }
 }
