@@ -96,12 +96,8 @@ public static class DatabaseSeeder
 
     private static async Task SeedDataSourcesAsync(MacroRegimeDbContext db)
     {
-        if (await db.DataSources.AnyAsync())
+        var sourceDefinitions = new[]
         {
-            return;
-        }
-
-        db.DataSources.AddRange(
             new DataSource
             {
                 Name = "FRED",
@@ -129,8 +125,23 @@ public static class DatabaseSeeder
                 SourceType = "FiscalApi",
                 BaseUrl = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service",
                 RequiresApiKey = false
-            });
+            }
+        };
 
+        var existingNames = await db.DataSources
+            .Select(source => source.Name)
+            .ToListAsync();
+        var existingNameSet = existingNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var missingSources = sourceDefinitions
+            .Where(source => !existingNameSet.Contains(source.Name))
+            .ToList();
+
+        if (missingSources.Count == 0)
+        {
+            return;
+        }
+
+        db.DataSources.AddRange(missingSources);
         await db.SaveChangesAsync();
     }
 
