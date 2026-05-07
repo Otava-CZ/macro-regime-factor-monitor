@@ -9,6 +9,9 @@ public sealed class StartupSyncService(
     IDbContextFactory<MacroRegimeDbContext> dbFactory,
     ILogger<StartupSyncService> logger)
 {
+    private const string CompletedStatus = "Completed";
+    private const string FailedStatus = "Failed";
+
     public async Task RunAsync()
     {
         var startedAtUtc = DateTime.UtcNow;
@@ -18,24 +21,11 @@ public sealed class StartupSyncService(
 
         try
         {
-            logger.LogInformation("Applying startup migrations/schema upgrades.");
-            await db.ApplyStartupSchemaUpgradesAsync();
-            appliedMigrations = await GetAppliedMigrationsMessageAsync(db);
+            appliedMigrations = await ApplySchemaUpgradesAsync(db);
+            seedResult = await SeedDatabaseAsync(db);
 
-            seedResult = await DatabaseSeeder.SeedAsync(db, logger);
-
-            db.StartupSyncRuns.Add(CreateRun(startedAtUtc, "Completed", appliedMigrations, seedResult));
-            await db.SaveChangesAsync();
-
-            logger.LogInformation(
-                "Startup sync completed. DataSources={SeededDataSources}, MacroFactors={SeededMacroFactors}, Indicators={SeededIndicators}, Observations={SeededObservations}, FactorScores={SeededFactorScores}, WeeklyReviews={SeededWeeklyReviews}, TradeIdeas={SeededTradeIdeas}.",
-                seedResult.SeededDataSources,
-                seedResult.SeededMacroFactors,
-                seedResult.SeededIndicators,
-                seedResult.SeededObservations,
-                seedResult.SeededFactorScores,
-                seedResult.SeededWeeklyReviews,
-                seedResult.SeededTradeIdeas);
+            await WriteRunAsync(db, startedAtUtc, CompletedStatus, appliedMigrations, seedResult);
+            LogSeedSummary(seedResult);
         }
         catch (Exception ex)
         {
@@ -43,6 +33,44 @@ public sealed class StartupSyncService(
             await TryWriteFailedRunAsync(startedAtUtc, appliedMigrations, seedResult, ex);
             throw;
         }
+    }
+
+    private async Task<string> ApplySchemaUpgradesAsync(MacroRegimeDbContext db)
+    {
+        logger.LogInformation("Applying startup migrations/schema upgrades.");
+        await db.ApplyStartupSchemaUpgradesAsync();
+        return await GetAppliedMigrationsMessageAsync(db);
+    }
+
+    private async Task<DatabaseSeedResult> SeedDatabaseAsync(MacroRegimeDbContext db)
+    {
+        // Seeding is additive/guarded so repeated startup syncs do not duplicate the sample dataset.
+        return await DatabaseSeeder.SeedAsync(db, logger);
+    }
+
+    private static async Task WriteRunAsync(
+        MacroRegimeDbContext db,
+        DateTime startedAtUtc,
+        string status,
+        string appliedMigrations,
+        DatabaseSeedResult? seedResult,
+        string errorMessage = "")
+    {
+        db.StartupSyncRuns.Add(CreateRun(startedAtUtc, status, appliedMigrations, seedResult, errorMessage));
+        await db.SaveChangesAsync();
+    }
+
+    private void LogSeedSummary(DatabaseSeedResult seedResult)
+    {
+        logger.LogInformation(
+            "Startup sync completed. DataSources={SeededDataSources}, MacroFactors={SeededMacroFactors}, Indicators={SeededIndicators}, Observations={SeededObservations}, FactorScores={SeededFactorScores}, WeeklyReviews={SeededWeeklyReviews}, TradeIdeas={SeededTradeIdeas}.",
+            seedResult.SeededDataSources,
+            seedResult.SeededMacroFactors,
+            seedResult.SeededIndicators,
+            seedResult.SeededObservations,
+            seedResult.SeededFactorScores,
+            seedResult.SeededWeeklyReviews,
+            seedResult.SeededTradeIdeas);
     }
 
     private static StartupSyncRun CreateRun(
@@ -88,13 +116,13 @@ public sealed class StartupSyncService(
         try
         {
             await using var failureDb = await dbFactory.CreateDbContextAsync();
-            failureDb.StartupSyncRuns.Add(CreateRun(
+            await WriteRunAsync(
+                failureDb,
                 startedAtUtc,
-                "Failed",
+                FailedStatus,
                 appliedMigrations,
                 seedResult,
-                exception.Message));
-            await failureDb.SaveChangesAsync();
+                exception.Message);
         }
         catch (Exception auditException)
         {
