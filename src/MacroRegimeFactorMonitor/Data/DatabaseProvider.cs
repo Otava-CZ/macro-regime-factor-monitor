@@ -15,6 +15,13 @@ public static class DatabaseProvider
     {
         var connectionString = configuration.GetConnectionString(ConnectionStringName);
 
+        if (IsPostgres(configuration) && string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "Database:Provider is set to Postgres, but ConnectionStrings:MacroRegime is missing or blank. " +
+                "Store the Supabase/Postgres connection string in user-secrets or environment variables.");
+        }
+
         return string.IsNullOrWhiteSpace(connectionString)
             ? DefaultSqliteConnectionString
             : connectionString;
