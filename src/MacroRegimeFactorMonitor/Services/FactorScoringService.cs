@@ -29,12 +29,15 @@ public sealed class FactorScoringService(IDbContextFactory<MacroRegimeDbContext>
             .OrderByDescending(score => Math.Abs(score.Score))
             .ToList();
 
+        var interpretations = MacroPressureInterpreter.BuildInterpretations(scores);
+
         return new DashboardSnapshot(
             latestDate.Value,
             compositeScore,
             FactorScoreCalculator.ClassifyRegime(compositeScore),
             scores,
-            categoryScores);
+            categoryScores,
+            interpretations);
     }
 }
 
@@ -43,12 +46,14 @@ public sealed record DashboardSnapshot(
     decimal CompositeScore,
     string Regime,
     IReadOnlyList<FactorScore> FactorScores,
-    IReadOnlyList<CategoryScore> CategoryScores)
+    IReadOnlyList<CategoryScore> CategoryScores,
+    IReadOnlyList<MacroInterpretation> MacroInterpretations)
 {
     public static DashboardSnapshot Empty { get; } = new(
         DateOnly.MinValue,
         0,
         "No scores yet",
+        [],
         [],
         []);
 }

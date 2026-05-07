@@ -4,6 +4,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MacroRegimeFactorMonitor", "src\MacroRegimeFactorMonitor\MacroRegimeFactorMonitor.csproj", "{5D78A4B7-78D1-4A6E-B8DE-3DD7C47D8B66}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MacroRegimeFactorMonitor.Tests", "tests\MacroRegimeFactorMonitor.Tests\MacroRegimeFactorMonitor.Tests.csproj", "{A69E1879-0A3B-42B6-9D86-D1F3D6148D0E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,5 +16,9 @@ Global
 		{5D78A4B7-78D1-4A6E-B8DE-3DD7C47D8B66}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5D78A4B7-78D1-4A6E-B8DE-3DD7C47D8B66}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5D78A4B7-78D1-4A6E-B8DE-3DD7C47D8B66}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A69E1879-0A3B-42B6-9D86-D1F3D6148D0E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A69E1879-0A3B-42B6-9D86-D1F3D6148D0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A69E1879-0A3B-42B6-9D86-D1F3D6148D0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A69E1879-0A3B-42B6-9D86-D1F3D6148D0E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

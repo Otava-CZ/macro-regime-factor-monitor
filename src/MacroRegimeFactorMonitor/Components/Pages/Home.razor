@@ -33,6 +33,7 @@ else
 
     <section class="card">
         <h2>Factor Scores</h2>
+        <p class="section-note">These are the six measurable factor scores. The impact label translates each factor into macro pressure or relief, so it is not a generic risk-on/risk-off label.</p>
         <table>
             <thead>
                 <tr>
@@ -52,12 +53,39 @@ else
                         <td>@score.MacroFactor?.Category</td>
                         <td class="number">@score.RawScore</td>
                         <td class="number">@score.WeightedScore</td>
-                        <td><span class="pill">@score.RegimeImpact</span></td>
+                        <td><span class="pill">@MacroPressureInterpreter.ClassifyFactorImpact(score)</span></td>
                         <td>@score.Notes</td>
                     </tr>
                 }
             </tbody>
         </table>
+    </section>
+
+    <section class="card">
+        <h2>Macro Pressure Interpretations</h2>
+        <p class="section-note">These four interpretations convert measurable factor scores into pressure readings for the macro monitor.</p>
+        <div class="interpretation-list">
+            @foreach (var interpretation in snapshot.MacroInterpretations)
+            {
+                <article class="interpretation-card">
+                    <div class="interpretation-header">
+                        <h3>@interpretation.Name</h3>
+                        <span class="pill">@interpretation.Reading</span>
+                    </div>
+                    <dl>
+                        <div>
+                            <dt>Score</dt>
+                            <dd>@interpretation.Score</dd>
+                        </div>
+                        <div>
+                            <dt>Contributing factors</dt>
+                            <dd>@string.Join(", ", interpretation.ContributingFactors)</dd>
+                        </div>
+                    </dl>
+                    <p><strong>Why this interpretation?</strong> @interpretation.Explanation</p>
+                </article>
+            }
+        </div>
     </section>
 
     <section class="card">
