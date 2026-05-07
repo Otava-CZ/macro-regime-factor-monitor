@@ -61,6 +61,20 @@ else
     </section>
 
     <section class="card">
+        <h2>Macro Interpretation Layer</h2>
+        <p class="lede">Derived readings are interpretations of the measurable six-factor model, not replacements for the underlying factors.</p>
+        <div class="category-list">
+            @foreach (var interpretation in snapshot.Interpretations)
+            {
+                <div>
+                    <span>@interpretation.Name</span>
+                    <strong>@interpretation.PressureScore · @interpretation.Assessment</strong>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="card">
         <h2>Category Signals</h2>
         <div class="category-list">
             @foreach (var category in snapshot.CategoryScores)

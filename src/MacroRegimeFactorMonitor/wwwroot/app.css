@@ -199,3 +199,44 @@ button {
         padding: 1rem;
     }
 }
+
+.journal-entry-header,
+.button-row {
+    align-items: center;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+}
+
+.button-row {
+    justify-content: flex-start;
+}
+
+button.secondary {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.journal-details {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin: 1rem 0 0;
+}
+
+.journal-details div {
+    align-items: start;
+    display: grid;
+    gap: 0.25rem;
+}
+
+.journal-details dt {
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.journal-details dd {
+    margin: 0;
+}

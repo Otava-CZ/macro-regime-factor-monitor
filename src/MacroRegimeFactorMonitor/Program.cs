@@ -30,6 +30,7 @@ await using (var scope = app.Services.CreateAsyncScope())
     var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<MacroRegimeDbContext>>();
     await using var db = await dbFactory.CreateDbContextAsync();
     await db.Database.EnsureCreatedAsync();
+    await SqliteSchemaUpgrader.UpgradeAsync(db);
     await DatabaseSeeder.SeedAsync(db);
 }
 

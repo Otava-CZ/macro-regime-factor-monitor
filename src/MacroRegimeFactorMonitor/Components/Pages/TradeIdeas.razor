@@ -11,34 +11,7 @@
     <EditForm Model="draft" OnValidSubmit="SaveAsync" FormName="trade-idea-form">
         <DataAnnotationsValidator />
         <div class="form-grid">
-            <label>
-                Idea date
-                <InputDate @bind-Value="draft.IdeaDate" />
-            </label>
-            <label>
-                Title
-                <InputText @bind-Value="draft.Title" />
-            </label>
-            <label>
-                Instrument
-                <InputText @bind-Value="draft.Instrument" />
-            </label>
-            <label>
-                Status
-                <InputSelect @bind-Value="draft.Status">
-                    <option>Watching</option>
-                    <option>Active</option>
-                    <option>Closed</option>
-                </InputSelect>
-            </label>
-            <label class="wide">
-                Thesis
-                <InputTextArea @bind-Value="draft.Thesis" />
-            </label>
-            <label class="wide">
-                Risk notes
-                <InputTextArea @bind-Value="draft.RiskNotes" />
-            </label>
+            @IdeaFields(draft)
         </div>
         <button type="submit">Save idea</button>
     </EditForm>
@@ -50,18 +23,68 @@
     {
         <p>Loading ideas...</p>
     }
+    else if (ideas.Count == 0)
+    {
+        <p>No saved trade ideas yet.</p>
+    }
     else
     {
         @foreach (var idea in ideas)
         {
             <article class="journal-entry">
-                <div>
-                    <strong>@idea.Title</strong>
-                    <span class="pill">@idea.Status</span>
-                </div>
-                <p>@idea.IdeaDate.ToString("yyyy-MM-dd") · @idea.Instrument</p>
-                <p>@idea.Thesis</p>
-                <p><strong>Risk notes:</strong> @idea.RiskNotes</p>
+                @if (editDraft?.Id == idea.Id)
+                {
+                    <EditForm Model="editDraft!" OnValidSubmit="UpdateAsync" FormName="@($"trade-idea-edit-form-{idea.Id}")">
+                        <DataAnnotationsValidator />
+                        <div class="form-grid">
+                            @IdeaFields(editDraft!)
+                        </div>
+                        <div class="button-row">
+                            <button type="submit">Save changes</button>
+                            <button type="button" class="secondary" @onclick="CancelEdit">Cancel</button>
+                        </div>
+                    </EditForm>
+                }
+                else
+                {
+                    <div class="journal-entry-header">
+                        <strong>@idea.Title</strong>
+                        <span class="pill">@idea.Status</span>
+                    </div>
+                    <p>@idea.IdeaDate.ToString("yyyy-MM-dd") · @idea.Instrument</p>
+                    <p>@idea.Thesis</p>
+                    <dl class="journal-details">
+                        <div>
+                            <dt>Entry trigger</dt>
+                            <dd>@DisplayValue(idea.EntryTrigger)</dd>
+                        </div>
+                        <div>
+                            <dt>Invalidation</dt>
+                            <dd>@DisplayValue(idea.Invalidation)</dd>
+                        </div>
+                        <div>
+                            <dt>Catalyst</dt>
+                            <dd>@DisplayValue(idea.Catalyst)</dd>
+                        </div>
+                        <div>
+                            <dt>Max loss</dt>
+                            <dd>@DisplayValue(idea.MaxLoss)</dd>
+                        </div>
+                        <div>
+                            <dt>Time horizon</dt>
+                            <dd>@DisplayValue(idea.TimeHorizon)</dd>
+                        </div>
+                        <div>
+                            <dt>Risk notes</dt>
+                            <dd>@DisplayValue(idea.RiskNotes)</dd>
+                        </div>
+                        <div>
+                            <dt>Post-mortem</dt>
+                            <dd>@DisplayValue(idea.PostMortem)</dd>
+                        </div>
+                    </dl>
+                    <button type="button" class="secondary" @onclick="() => BeginEdit(idea)">Edit idea</button>
+                }
             </article>
         }
     }
@@ -69,6 +92,7 @@
 
 @code {
     private TradeIdea draft = NewDraft();
+    private TradeIdea? editDraft;
     private List<TradeIdea>? ideas;
 
     protected override async Task OnInitializedAsync()
@@ -83,10 +107,107 @@
         ideas = await JournalService.GetTradeIdeasAsync();
     }
 
+    private void BeginEdit(TradeIdea idea)
+    {
+        editDraft = CopyIdea(idea);
+    }
+
+    private void CancelEdit()
+    {
+        editDraft = null;
+    }
+
+    private async Task UpdateAsync()
+    {
+        if (editDraft is null)
+        {
+            return;
+        }
+
+        await JournalService.UpdateTradeIdeaAsync(editDraft);
+        editDraft = null;
+        ideas = await JournalService.GetTradeIdeasAsync();
+    }
+
     private static TradeIdea NewDraft() => new()
     {
         IdeaDate = DateOnly.FromDateTime(DateTime.UtcNow.Date),
         Title = string.Empty,
         Status = "Watching"
     };
+
+    private static TradeIdea CopyIdea(TradeIdea idea) => new()
+    {
+        Id = idea.Id,
+        IdeaDate = idea.IdeaDate,
+        Title = idea.Title,
+        Thesis = idea.Thesis,
+        Instrument = idea.Instrument,
+        Status = idea.Status,
+        RiskNotes = idea.RiskNotes,
+        EntryTrigger = idea.EntryTrigger,
+        Invalidation = idea.Invalidation,
+        Catalyst = idea.Catalyst,
+        MaxLoss = idea.MaxLoss,
+        TimeHorizon = idea.TimeHorizon,
+        PostMortem = idea.PostMortem,
+        CreatedAtUtc = idea.CreatedAtUtc
+    };
+
+    private static string DisplayValue(string value) => string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+
+    private RenderFragment IdeaFields(TradeIdea idea) => @<>
+        <label>
+            Idea date
+            <InputDate @bind-Value="idea.IdeaDate" />
+        </label>
+        <label>
+            Title
+            <InputText @bind-Value="idea.Title" />
+        </label>
+        <label>
+            Instrument
+            <InputText @bind-Value="idea.Instrument" />
+        </label>
+        <label>
+            Status
+            <InputSelect @bind-Value="idea.Status">
+                <option>Watching</option>
+                <option>Active</option>
+                <option>Closed</option>
+            </InputSelect>
+        </label>
+        <label class="wide">
+            Thesis
+            <InputTextArea @bind-Value="idea.Thesis" />
+        </label>
+        <label class="wide">
+            Entry trigger
+            <InputTextArea @bind-Value="idea.EntryTrigger" />
+        </label>
+        <label class="wide">
+            Invalidation
+            <InputTextArea @bind-Value="idea.Invalidation" />
+        </label>
+        <label class="wide">
+            Catalyst
+            <InputTextArea @bind-Value="idea.Catalyst" />
+        </label>
+        <label>
+            Max loss
+            <InputText @bind-Value="idea.MaxLoss" />
+        </label>
+        <label>
+            Time horizon
+            <InputText @bind-Value="idea.TimeHorizon" />
+        </label>
+        <label class="wide">
+            Risk notes
+            <InputTextArea @bind-Value="idea.RiskNotes" />
+        </label>
+        <label class="wide">
+            Post-mortem
+            <InputTextArea @bind-Value="idea.PostMortem" />
+        </label>
+    </>;
 }

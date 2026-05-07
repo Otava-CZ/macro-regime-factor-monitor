@@ -40,4 +40,25 @@ public sealed class JournalService(IDbContextFactory<MacroRegimeDbContext> dbFac
         db.TradeIdeas.Add(idea);
         await db.SaveChangesAsync();
     }
+
+    public async Task UpdateTradeIdeaAsync(TradeIdea idea)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var existingIdea = await db.TradeIdeas.SingleAsync(savedIdea => savedIdea.Id == idea.Id);
+
+        existingIdea.IdeaDate = idea.IdeaDate;
+        existingIdea.Title = idea.Title;
+        existingIdea.Thesis = idea.Thesis;
+        existingIdea.Instrument = idea.Instrument;
+        existingIdea.Status = idea.Status;
+        existingIdea.RiskNotes = idea.RiskNotes;
+        existingIdea.EntryTrigger = idea.EntryTrigger;
+        existingIdea.Invalidation = idea.Invalidation;
+        existingIdea.Catalyst = idea.Catalyst;
+        existingIdea.MaxLoss = idea.MaxLoss;
+        existingIdea.TimeHorizon = idea.TimeHorizon;
+        existingIdea.PostMortem = idea.PostMortem;
+
+        await db.SaveChangesAsync();
+    }
 }

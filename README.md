@@ -18,7 +18,7 @@ The app keeps the original weighted scoring idea, but stores factors, indicators
   5. Fiscal/Treasury Stress
   6. Market Complacency
 - Simple weekly review page.
-- Simple trade idea journal page.
+- Trade idea journal page with thesis, entry trigger, invalidation, catalyst, max-loss, time-horizon, risk-notes, and post-mortem fields.
 
 ## Development environment
 
@@ -51,6 +51,19 @@ Open the repository in the Dev Container so `dotnet` is available for restore, b
 
 On first startup, the app creates a local SQLite database file named `macro-regime.db` in the working directory and seeds it with the initial macro factors, one indicator per factor, latest observations, factor scores, a sample weekly review, and a sample trade idea.
 
+## Local SQLite upgrades
+
+The app uses `EnsureCreated` for lightweight local development databases rather than a production migration workflow. On startup, after the SQLite database is created or opened, the app runs a small compatibility upgrade that inspects the existing `TradeIdeas` table and adds any missing v0.3 journal columns:
+
+- `EntryTrigger`
+- `Invalidation`
+- `Catalyst`
+- `MaxLoss`
+- `TimeHorizon`
+- `PostMortem`
+
+Existing rows are preserved and receive empty-string defaults for newly added journal fields. If you want to rebuild all seed data from scratch instead, stop the app, delete the local `macro-regime.db` file in your run directory, and start the app again.
+
 ## Scoring approach
 
 For each seeded factor, the app computes a normalized raw score from its indicator observation:
@@ -61,6 +74,17 @@ weighted score = raw score * factor weight
 ```
 
 `direction` is `1` when higher values are constructive for risk assets and `-1` when higher values are a macro risk. Weighted scores are summed into category scores and a composite dashboard score.
+
+## Macro interpretation layer
+
+The dashboard keeps the six measurable factor scores as the source of truth and derives four higher-level interpretation readings from those persisted scores:
+
+1. inflation/stagflation pressure
+2. fiscal/Treasury stress
+3. hard-landing pressure
+4. market complacency/mispricing
+
+These derived readings are meant to summarize the six-factor model; they do not replace the measurable factors.
 
 ## Regime thresholds
 
