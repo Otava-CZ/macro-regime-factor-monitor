@@ -1,6 +1,7 @@
 using MacroRegimeFactorMonitor.Components;
 using MacroRegimeFactorMonitor.Data;
 using MacroRegimeFactorMonitor.Services;
+using MacroRegimeFactorMonitor.Services.Imports;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,6 +26,12 @@ static void ConfigureServices(WebApplicationBuilder builder)
     builder.Services.AddScoped<FactorScoringService>();
     builder.Services.AddScoped<JournalService>();
     builder.Services.AddScoped<StartupSyncService>();
+    builder.Services.AddScoped<IDataSourceClient, FredDataSourceClient>();
+    builder.Services.AddScoped<IDataSourceClient, BlsDataSourceClient>();
+    builder.Services.AddScoped<IDataSourceClient, EiaDataSourceClient>();
+    builder.Services.AddScoped<IDataSourceClient, TreasuryFiscalDataClient>();
+    builder.Services.AddScoped<IDataSourceClientFactory, DataSourceClientFactory>();
+    builder.Services.AddScoped<IObservationImportService, ObservationImportService>();
 }
 
 static void ConfigureMiddleware(WebApplication app)
