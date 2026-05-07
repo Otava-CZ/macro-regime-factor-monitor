@@ -101,6 +101,17 @@ dotnet user-secrets set "ConnectionStrings:MacroRegime" "Host=db.<project-ref>.s
 
 The startup path creates the EF model schema for a new database before seeding the sample monitor data. The legacy lightweight column upgrade remains SQLite-only and is not run against Postgres.
 
+
+## Startup synchronization safety
+
+Startup synchronization is designed to be safe to run repeatedly against the same SQLite or Supabase/Postgres database.
+
+- Schema migrations and lightweight startup schema upgrades are applied idempotently before seeding.
+- The data source registry is additive only: startup inserts missing official/public source definitions by `Name` and does not update, disable, delete, or overwrite existing `DataSources` rows.
+- Initial sample macro seed data is inserted only when the database has no `MacroFactors` rows. If any macro factors already exist, startup skips sample `MacroFactors`, `Indicators`, `IndicatorObservations`, `FactorScores`, `WeeklyReviews`, and `TradeIdeas`.
+- Startup never overwrites imported observations, edited factor definitions, user-created journal entries, or custom/disabled source rows.
+- Each startup writes one `StartupSyncRuns` audit row with the applied migration list, seeding counts, completion status, message, and any error message captured before the failure is rethrown.
+
 ## Historical data ingestion plan
 
 Historical macro data ingestion is intended to be source-driven rather than copy/pasted by hand. The database foundation added for future import work separates provider metadata, app-to-provider series mappings, audited import attempts, and normalized observations.

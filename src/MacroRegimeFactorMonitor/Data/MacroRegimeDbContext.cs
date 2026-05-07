@@ -15,6 +15,7 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
     public DbSet<FactorScore> FactorScores => Set<FactorScore>();
     public DbSet<WeeklyReview> WeeklyReviews => Set<WeeklyReview>();
     public DbSet<TradeIdea> TradeIdeas => Set<TradeIdea>();
+    public DbSet<StartupSyncRun> StartupSyncRuns => Set<StartupSyncRun>();
 
     public async Task ApplyStartupSchemaUpgradesAsync()
     {
@@ -34,6 +35,8 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
 
     private async Task ApplySqliteSchemaUpgradesAsync()
     {
+        await EnsureSqliteStartupSyncRunsTableAsync();
+
         var existingColumns = await GetTableColumnsAsync("TradeIdeas");
         if (existingColumns.Count == 0)
         {
@@ -59,6 +62,39 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
 
             await Database.ExecuteSqlRawAsync($"ALTER TABLE TradeIdeas ADD COLUMN {columnName} {columnDefinition};");
         }
+    }
+
+
+    private async Task EnsureSqliteStartupSyncRunsTableAsync()
+    {
+        await Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS StartupSyncRuns (
+                Id INTEGER NOT NULL CONSTRAINT PK_StartupSyncRuns PRIMARY KEY AUTOINCREMENT,
+                StartedAtUtc TEXT NOT NULL,
+                FinishedAtUtc TEXT NULL,
+                Status TEXT NOT NULL,
+                Message TEXT NOT NULL DEFAULT '',
+                AppliedMigrations TEXT NOT NULL DEFAULT '',
+                SeededDataSources INTEGER NOT NULL DEFAULT 0,
+                SeededMacroFactors INTEGER NOT NULL DEFAULT 0,
+                SeededIndicators INTEGER NOT NULL DEFAULT 0,
+                SeededObservations INTEGER NOT NULL DEFAULT 0,
+                SeededFactorScores INTEGER NOT NULL DEFAULT 0,
+                SeededWeeklyReviews INTEGER NOT NULL DEFAULT 0,
+                SeededTradeIdeas INTEGER NOT NULL DEFAULT 0,
+                ErrorMessage TEXT NOT NULL DEFAULT ''
+            );
+            """);
+
+        await Database.ExecuteSqlRawAsync("""
+            CREATE INDEX IF NOT EXISTS IX_StartupSyncRuns_StartedAtUtc
+            ON StartupSyncRuns (StartedAtUtc);
+            """);
+
+        await Database.ExecuteSqlRawAsync("""
+            CREATE INDEX IF NOT EXISTS IX_StartupSyncRuns_Status
+            ON StartupSyncRuns (Status);
+            """);
     }
 
     private async Task<HashSet<string>> GetTableColumnsAsync(string tableName)
@@ -149,6 +185,18 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
                 .WithMany(source => source.ImportRuns)
                 .HasForeignKey(run => run.DataSourceId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+
+        modelBuilder.Entity<StartupSyncRun>(entity =>
+        {
+            entity.Property(run => run.StartedAtUtc).IsRequired();
+            entity.Property(run => run.Status).HasMaxLength(40).IsRequired();
+            entity.Property(run => run.Message).HasDefaultValue(string.Empty);
+            entity.Property(run => run.AppliedMigrations).HasDefaultValue(string.Empty);
+            entity.Property(run => run.ErrorMessage).HasDefaultValue(string.Empty);
+            entity.HasIndex(run => run.StartedAtUtc);
+            entity.HasIndex(run => run.Status);
         });
 
         modelBuilder.Entity<IndicatorObservation>(entity =>

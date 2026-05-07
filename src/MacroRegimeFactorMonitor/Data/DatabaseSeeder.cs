@@ -1,6 +1,7 @@
 using MacroRegimeFactorMonitor.Domain;
 using MacroRegimeFactorMonitor.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace MacroRegimeFactorMonitor.Data;
 
@@ -8,13 +9,21 @@ public static class DatabaseSeeder
 {
     private static readonly DateOnly SeedDate = new(2026, 4, 30);
 
-    public static async Task SeedAsync(MacroRegimeDbContext db)
+    public static async Task<DatabaseSeedResult> SeedAsync(
+        MacroRegimeDbContext db,
+        ILogger? logger = null)
     {
-        await SeedDataSourcesAsync(db);
+        logger?.LogInformation("Seeding source registry with additive-only synchronization.");
+        var result = new DatabaseSeedResult
+        {
+            SeededDataSources = await SeedDataSourcesAsync(db)
+        };
 
         if (await db.MacroFactors.AnyAsync())
         {
-            return;
+            result.Message = "Source registry synchronized; initial sample macro data skipped because MacroFactors already exist.";
+            logger?.LogInformation("Initial sample data skipped because MacroFactors already exist.");
+            return result;
         }
 
         var factors = new[]
@@ -29,6 +38,7 @@ public static class DatabaseSeeder
 
         db.MacroFactors.AddRange(factors.Select(item => item.Factor));
         await db.SaveChangesAsync();
+        result.SeededMacroFactors = factors.Length;
 
         foreach (var item in factors)
         {
@@ -37,6 +47,7 @@ public static class DatabaseSeeder
         }
 
         await db.SaveChangesAsync();
+        result.SeededIndicators = factors.Length;
 
         foreach (var item in factors)
         {
@@ -67,6 +78,9 @@ public static class DatabaseSeeder
             });
         }
 
+        result.SeededObservations = factors.Length;
+        result.SeededFactorScores = factors.Length;
+
         db.WeeklyReviews.Add(new WeeklyReview
         {
             WeekEnding = SeedDate,
@@ -74,6 +88,7 @@ public static class DatabaseSeeder
             KeyDevelopments = "Seed data shows inflation, energy, and rates stress offsetting growth momentum.",
             RisksToWatch = "Watch whether inflation breadth narrows and whether Treasury stress eases."
         });
+        result.SeededWeeklyReviews = 1;
 
         db.TradeIdeas.Add(new TradeIdea
         {
@@ -90,11 +105,14 @@ public static class DatabaseSeeder
             PostMortem = "Document whether the factor-derived interpretation, entry trigger, and invalidation worked as expected after closing.",
             RiskNotes = "Reassess if growth data improves or inflation pressure cools."
         });
+        result.SeededTradeIdeas = 1;
 
         await db.SaveChangesAsync();
+        result.Message = "Source registry synchronized; initial sample macro data inserted into an empty database.";
+        return result;
     }
 
-    private static async Task SeedDataSourcesAsync(MacroRegimeDbContext db)
+    private static async Task<int> SeedDataSourcesAsync(MacroRegimeDbContext db)
     {
         var sourceDefinitions = new[]
         {
@@ -138,11 +156,12 @@ public static class DatabaseSeeder
 
         if (missingSources.Count == 0)
         {
-            return;
+            return 0;
         }
 
         db.DataSources.AddRange(missingSources);
         await db.SaveChangesAsync();
+        return missingSources.Count;
     }
 
     private static (MacroFactor Factor, Indicator Indicator, decimal ObservationValue) CreateFactor(

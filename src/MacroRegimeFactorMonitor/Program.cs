@@ -12,6 +12,7 @@ builder.Services.AddDbContextFactory<MacroRegimeDbContext>(options =>
     options.UseConfiguredDatabase(builder.Configuration));
 builder.Services.AddScoped<FactorScoringService>();
 builder.Services.AddScoped<JournalService>();
+builder.Services.AddScoped<StartupSyncService>();
 
 var app = builder.Build();
 
@@ -27,10 +28,8 @@ app.UseAntiforgery();
 
 await using (var scope = app.Services.CreateAsyncScope())
 {
-    var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<MacroRegimeDbContext>>();
-    await using var db = await dbFactory.CreateDbContextAsync();
-    await db.ApplyStartupSchemaUpgradesAsync();
-    await DatabaseSeeder.SeedAsync(db);
+    var startupSync = scope.ServiceProvider.GetRequiredService<StartupSyncService>();
+    await startupSync.RunAsync();
 }
 
 app.MapRazorComponents<App>()
