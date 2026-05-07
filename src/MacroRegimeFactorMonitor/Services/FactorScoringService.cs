@@ -92,7 +92,10 @@ public static class MacroInterpretationScoring
             : "No scored factors";
         var factorContributions = contributingScores.Count > 0
             ? string.Join("; ", contributingScores.Select(score =>
-                $"{score.MacroFactor!.Name}: {FactorScoreCalculator.CalculatePressureContribution(score.WeightedScore, score.MacroFactor.Name):+0.00;-0.00;0.00} ({FactorScoreCalculator.ClassifyPressureImpact(score.RawScore, score.MacroFactor.Name)})"))
+            {
+                var pressureContribution = FactorScoreCalculator.CalculatePressureContribution(score.WeightedScore, score.MacroFactor?.Name);
+                return $"{score.MacroFactor!.Name}: {pressureContribution:+0.00;-0.00;0.00} ({FactorScoreCalculator.ClassifyPressureImpact(pressureContribution, score.MacroFactor.Name)})";
+            }))
             : "No scored factor contributions yet.";
 
         return new(
