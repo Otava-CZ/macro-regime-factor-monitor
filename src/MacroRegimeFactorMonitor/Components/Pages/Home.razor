@@ -72,14 +72,16 @@ else
             <tbody>
                 @foreach (var score in snapshot.FactorScores)
                 {
+                    var pressureContribution = FactorScoreCalculator.CalculatePressureContribution(score.WeightedScore, score.MacroFactor?.Name);
+
                     <tr>
                         <td>@score.MacroFactor?.Name</td>
                         <td>@score.MacroFactor?.Category</td>
                         <td class="number">@score.RawScore</td>
                         <td class="number">@score.WeightedScore</td>
-                        <td class="number">@FactorScoreCalculator.CalculatePressureContribution(score.WeightedScore, score.MacroFactor?.Name)</td>
-                        <td><span class="pill">@FactorScoreCalculator.ClassifyPressureImpact(score.RawScore, score.MacroFactor?.Name)</span></td>
-                        <td>@FactorScoreCalculator.ExplainPressureImpact(score.RawScore, score.MacroFactor?.Name)</td>
+                        <td class="number">@pressureContribution</td>
+                        <td><span class="pill">@FactorScoreCalculator.ClassifyPressureImpact(pressureContribution, score.MacroFactor?.Name)</span></td>
+                        <td>@FactorScoreCalculator.ExplainPressureImpact(pressureContribution, score.MacroFactor?.Name)</td>
                         <td>@score.Notes</td>
                     </tr>
                 }
