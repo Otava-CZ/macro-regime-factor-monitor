@@ -9,6 +9,9 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
     public DbSet<MacroFactor> MacroFactors => Set<MacroFactor>();
     public DbSet<Indicator> Indicators => Set<Indicator>();
     public DbSet<IndicatorObservation> IndicatorObservations => Set<IndicatorObservation>();
+    public DbSet<DataSource> DataSources => Set<DataSource>();
+    public DbSet<ExternalSeries> ExternalSeries => Set<ExternalSeries>();
+    public DbSet<DataImportRun> DataImportRuns => Set<DataImportRun>();
     public DbSet<FactorScore> FactorScores => Set<FactorScore>();
     public DbSet<WeeklyReview> WeeklyReviews => Set<WeeklyReview>();
     public DbSet<TradeIdea> TradeIdeas => Set<TradeIdea>();
@@ -102,14 +105,71 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<DataSource>(entity =>
+        {
+            entity.Property(source => source.Name).HasMaxLength(120).IsRequired();
+            entity.Property(source => source.SourceType).HasMaxLength(60).IsRequired();
+            entity.Property(source => source.BaseUrl).HasMaxLength(500).IsRequired();
+            entity.Property(source => source.Notes).HasDefaultValue(string.Empty);
+            entity.Property(source => source.IsActive).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<ExternalSeries>(entity =>
+        {
+            entity.Property(series => series.ExternalSeriesId).HasMaxLength(120).IsRequired();
+            entity.Property(series => series.Endpoint).HasMaxLength(500).IsRequired();
+            entity.Property(series => series.Frequency).HasMaxLength(40).IsRequired();
+            entity.Property(series => series.Units).HasMaxLength(80).IsRequired();
+            entity.Property(series => series.Transform).HasMaxLength(80).IsRequired();
+            entity.Property(series => series.ObservationDateField).HasMaxLength(80).IsRequired();
+            entity.Property(series => series.ValueField).HasMaxLength(80).IsRequired();
+            entity.Property(series => series.Notes).HasDefaultValue(string.Empty);
+            entity.Property(series => series.IsActive).HasDefaultValue(true);
+            entity.HasIndex(series => new { series.DataSourceId, series.ExternalSeriesId, series.IndicatorId }).IsUnique();
+            entity.HasIndex(series => series.IndicatorId);
+            entity.HasIndex(series => series.DataSourceId);
+            entity.HasOne(series => series.Indicator)
+                .WithMany(indicator => indicator.ExternalSeries)
+                .HasForeignKey(series => series.IndicatorId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(series => series.DataSource)
+                .WithMany(source => source.ExternalSeries)
+                .HasForeignKey(series => series.DataSourceId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DataImportRun>(entity =>
+        {
+            entity.Property(run => run.Status).HasMaxLength(40).IsRequired();
+            entity.Property(run => run.ErrorMessage).HasDefaultValue(string.Empty);
+            entity.Property(run => run.Notes).HasDefaultValue(string.Empty);
+            entity.HasIndex(run => new { run.DataSourceId, run.StartedAtUtc });
+            entity.HasIndex(run => run.Status);
+            entity.HasOne(run => run.DataSource)
+                .WithMany(source => source.ImportRuns)
+                .HasForeignKey(run => run.DataSourceId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<IndicatorObservation>(entity =>
         {
             entity.Property(observation => observation.Value).HasPrecision(12, 4);
+            entity.Property(observation => observation.Source).HasMaxLength(120).HasDefaultValue(string.Empty);
+            // TODO: replace this with provider-compatible vintage-aware uniqueness once NULL
+            // VintageDate behavior is handled consistently across PostgreSQL and SQLite.
             entity.HasIndex(observation => new { observation.IndicatorId, observation.ObservationDate }).IsUnique();
             entity.HasOne(observation => observation.Indicator)
                 .WithMany(indicator => indicator.Observations)
                 .HasForeignKey(observation => observation.IndicatorId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(observation => observation.ExternalSeries)
+                .WithMany(series => series.Observations)
+                .HasForeignKey(observation => observation.ExternalSeriesId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(observation => observation.DataImportRun)
+                .WithMany(run => run.Observations)
+                .HasForeignKey(observation => observation.DataImportRunId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<FactorScore>(entity =>

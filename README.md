@@ -101,6 +101,17 @@ dotnet user-secrets set "ConnectionStrings:MacroRegime" "Host=db.<project-ref>.s
 
 The startup path creates the EF model schema for a new database before seeding the sample monitor data. The legacy lightweight column upgrade remains SQLite-only and is not run against Postgres.
 
+## Historical data ingestion plan
+
+Historical macro data ingestion is intended to be source-driven rather than copy/pasted by hand. The database foundation added for future import work separates provider metadata, app-to-provider series mappings, audited import attempts, and normalized observations.
+
+- `DataSources` defines official/public providers such as FRED, BLS, EIA, and Treasury Fiscal Data, including provider type, base URL, whether an API key is expected, and operational notes. No API keys or secrets are stored in source control.
+- `ExternalSeries` will map one app `Indicator` to one provider series or endpoint, including the provider series id, endpoint, frequency, units, transform, and response fields used for observation dates and values.
+- `DataImportRuns` will audit each import attempt with its source, start/finish timestamps, status, row counts, errors, and notes.
+- `IndicatorObservations` stores normalized observations used by the app and now includes nullable source/import tracking fields for external series, import runs, source names, release dates, vintage dates, and timestamps.
+
+Future PRs will add importer clients for official/public APIs, including the FRED observations API, BLS public timeseries API, EIA API v2, and Treasury Fiscal Data REST API. This PR does not implement live API fetching, does not import historical datasets, and does not add API keys.
+
 ## Scoring approach
 
 For each seeded factor, the app computes a normalized raw score from its indicator observation:
