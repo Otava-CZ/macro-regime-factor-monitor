@@ -66,7 +66,7 @@ public static class DatabaseSeeder
         db.WeeklyReviews.Add(new WeeklyReview
         {
             WeekEnding = SeedDate,
-            RegimeAssessment = "Defensive Slowdown",
+            RegimeAssessment = "Inflation and Treasury stress with hard-landing watch",
             KeyDevelopments = "Seed data shows inflation, energy, and rates stress offsetting growth momentum.",
             RisksToWatch = "Watch whether inflation breadth narrows and whether Treasury stress eases."
         });
@@ -76,8 +76,14 @@ public static class DatabaseSeeder
             IdeaDate = SeedDate,
             Title = "Watch defensive equity factor exposure",
             Instrument = "Quality / low-volatility basket",
-            Thesis = "Use the journal to track discretionary ideas suggested by the macro dashboard. This is not an execution or broker integration.",
+            Thesis = "Use the journal to track manual trade candidates suggested by factor-derived macro interpretations. This is not an execution or broker integration.",
             Status = "Watching",
+            EntryTrigger = "Consider only after confirming the derived inflation/stagflation and hard-landing readings persist in the factor scores.",
+            Invalidation = "Invalidate if growth stress fades and inflation breadth moves back toward neutral.",
+            Catalyst = "Weekly data update confirms persistent inflation breadth, energy pressure, or Treasury stress.",
+            MaxLoss = "Define before any manual action; no automatic order management is provided.",
+            TimeHorizon = "One to eight weeks, reviewed each weekly journal cycle.",
+            PostMortem = "Document whether the factor-derived interpretation, entry trigger, and invalidation worked as expected after closing.",
             RiskNotes = "Reassess if growth data improves or inflation pressure cools."
         });
 
