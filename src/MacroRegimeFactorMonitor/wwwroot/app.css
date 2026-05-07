@@ -199,3 +199,19 @@ button {
         padding: 1rem;
     }
 }
+
+.idea-details {
+    display: grid;
+    gap: 0.35rem 1rem;
+    grid-template-columns: minmax(120px, 0.25fr) 1fr;
+    margin-bottom: 0;
+}
+
+.idea-details dt {
+    color: #475569;
+    font-weight: 700;
+}
+
+.idea-details dd {
+    margin: 0;
+}

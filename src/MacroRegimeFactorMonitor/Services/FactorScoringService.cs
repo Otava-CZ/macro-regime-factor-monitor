@@ -24,7 +24,7 @@ public sealed class FactorScoringService(IDbContextFactory<MacroRegimeDbContext>
 
         var compositeScore = Math.Round(scores.Sum(score => score.WeightedScore), 2);
         var categoryScores = scores
-            .GroupBy(score => score.MacroFactor?.Category ?? "Uncategorized")
+            .GroupBy(score => MapToMacroInterpretation(score.MacroFactor?.Category, score.MacroFactor?.Name))
             .Select(group => new CategoryScore(group.Key, Math.Round(group.Sum(score => score.WeightedScore), 2)))
             .OrderByDescending(score => Math.Abs(score.Score))
             .ToList();
@@ -32,10 +32,53 @@ public sealed class FactorScoringService(IDbContextFactory<MacroRegimeDbContext>
         return new DashboardSnapshot(
             latestDate.Value,
             compositeScore,
-            FactorScoreCalculator.ClassifyRegime(compositeScore),
+            ClassifyDominantMacroInterpretation(categoryScores),
             scores,
             categoryScores);
     }
+
+    private static string ClassifyDominantMacroInterpretation(IReadOnlyList<CategoryScore> categoryScores)
+    {
+        if (categoryScores.Count == 0)
+        {
+            return "No scores yet";
+        }
+
+        return categoryScores
+            .OrderByDescending(score => Math.Abs(score.Score))
+            .First()
+            .Category;
+    }
+
+    private static string MapToMacroInterpretation(string? category, string? factorName)
+    {
+        var combined = $"{category} {factorName}";
+
+        if (ContainsAny(combined, "fiscal", "treasury", "rates", "term premium", "yield"))
+        {
+            return "fiscal/Treasury stress";
+        }
+
+        if (ContainsAny(combined, "growth", "labor", "pmi", "hard-landing"))
+        {
+            return "hard-landing pressure";
+        }
+
+        if (ContainsAny(combined, "market", "complacency", "mispricing", "sentiment", "vix"))
+        {
+            return "market complacency/mispricing";
+        }
+
+        if (ContainsAny(combined, "inflation", "stagflation", "commodities", "energy", "cpi"))
+        {
+            return "inflation/stagflation pressure";
+        }
+
+        return "market complacency/mispricing";
+    }
+
+    private static bool ContainsAny(string value, params string[] needles) =>
+        needles.Any(needle => value.Contains(needle, StringComparison.OrdinalIgnoreCase));
 }
 
 public sealed record DashboardSnapshot(

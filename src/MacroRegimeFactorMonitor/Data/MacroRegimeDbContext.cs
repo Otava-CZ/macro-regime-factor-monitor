@@ -68,6 +68,12 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
             entity.Property(idea => idea.Title).HasMaxLength(160).IsRequired();
             entity.Property(idea => idea.Instrument).HasMaxLength(80);
             entity.Property(idea => idea.Status).HasMaxLength(40);
+            entity.Property(idea => idea.EntryTrigger).HasMaxLength(500);
+            entity.Property(idea => idea.Invalidation).HasMaxLength(500);
+            entity.Property(idea => idea.Catalyst).HasMaxLength(500);
+            entity.Property(idea => idea.MaxLoss).HasMaxLength(120);
+            entity.Property(idea => idea.TimeHorizon).HasMaxLength(120);
+            entity.Property(idea => idea.PostMortem).HasMaxLength(1000);
         });
     }
 }

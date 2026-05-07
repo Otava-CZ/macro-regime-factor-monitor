@@ -18,19 +18,10 @@ public static class FactorScoreCalculator
 
     public static string ClassifyImpact(decimal rawScore) => rawScore switch
     {
-        >= 1.0m => "Risk-on support",
-        >= 0.25m => "Mild support",
-        <= -1.0m => "Risk-off pressure",
-        <= -0.25m => "Mild pressure",
-        _ => "Neutral"
-    };
-
-    public static string ClassifyRegime(decimal compositeScore) => compositeScore switch
-    {
-        >= 1.5m => "Expansion / Risk-On",
-        >= 0.4m => "Constructive Growth",
-        <= -1.5m => "Contraction / Risk-Off",
-        <= -0.4m => "Defensive Slowdown",
-        _ => "Neutral / Transition"
+        >= 1.0m => "Macro support",
+        >= 0.25m => "Mild macro support",
+        <= -1.0m => "Acute macro pressure",
+        <= -0.25m => "Mild macro pressure",
+        _ => "Balanced signal"
     };
 }

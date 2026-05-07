@@ -1,7 +1,5 @@
 Date,Factor,Category,Value,Baseline,Volatility,HigherIsRiskOn,Weight
-2026-04-30,Manufacturing PMI,Growth,51.3,50.0,2.0,true,0.35
-2026-04-30,Payroll Momentum,Growth,175,150,50,true,0.30
-2026-04-30,Credit Spreads,Liquidity,1.55,1.25,0.35,false,0.25
-2026-04-30,Yield Curve Slope,Rates,0.20,0.00,0.40,true,0.20
-2026-04-30,Core Inflation Trend,Inflation,3.1,2.5,0.5,false,0.25
-2026-04-30,Earnings Revisions,Sentiment,0.08,0.00,0.10,true,0.20
+2026-04-30,Core CPI Trend,inflation/stagflation pressure,3.1,2.5,0.5,false,0.30
+2026-04-30,10Y Treasury Term Premium,fiscal/Treasury stress,0.72,0.25,0.35,false,0.25
+2026-04-30,ISM Manufacturing PMI,hard-landing pressure,48.6,50.0,2.0,true,0.25
+2026-04-30,VIX Index,market complacency/mispricing,14.2,18.0,5.0,true,0.20

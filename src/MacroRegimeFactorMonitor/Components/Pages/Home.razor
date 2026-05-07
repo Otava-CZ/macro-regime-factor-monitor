@@ -22,7 +22,7 @@ else
             <strong>@snapshot.AsOfDate.ToString("yyyy-MM-dd")</strong>
         </div>
         <div class="metric-card">
-            <span>Regime</span>
+            <span>Dominant macro interpretation</span>
             <strong>@snapshot.Regime</strong>
         </div>
         <div class="metric-card">
@@ -61,7 +61,7 @@ else
     </section>
 
     <section class="card">
-        <h2>Category Signals</h2>
+        <h2>Macro Interpretation Signals</h2>
         <div class="category-list">
             @foreach (var category in snapshot.CategoryScores)
             {

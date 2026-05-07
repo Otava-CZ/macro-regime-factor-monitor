@@ -31,13 +31,37 @@
                     <option>Closed</option>
                 </InputSelect>
             </label>
+            <label>
+                Max loss
+                <InputText @bind-Value="draft.MaxLoss" placeholder="e.g., 1% NAV or stop level" />
+            </label>
+            <label>
+                Time horizon
+                <InputText @bind-Value="draft.TimeHorizon" placeholder="e.g., 2-6 weeks" />
+            </label>
             <label class="wide">
                 Thesis
                 <InputTextArea @bind-Value="draft.Thesis" />
             </label>
             <label class="wide">
+                Entry trigger
+                <InputTextArea @bind-Value="draft.EntryTrigger" />
+            </label>
+            <label class="wide">
+                Invalidation
+                <InputTextArea @bind-Value="draft.Invalidation" />
+            </label>
+            <label class="wide">
+                Catalyst
+                <InputTextArea @bind-Value="draft.Catalyst" />
+            </label>
+            <label class="wide">
                 Risk notes
                 <InputTextArea @bind-Value="draft.RiskNotes" />
+            </label>
+            <label class="wide">
+                Post-mortem
+                <InputTextArea @bind-Value="draft.PostMortem" placeholder="Complete after closure." />
             </label>
         </div>
         <button type="submit">Save idea</button>
@@ -50,6 +74,10 @@
     {
         <p>Loading ideas...</p>
     }
+    else if (ideas.Count == 0)
+    {
+        <p>No trade ideas have been saved yet.</p>
+    }
     else
     {
         @foreach (var idea in ideas)
@@ -61,7 +89,22 @@
                 </div>
                 <p>@idea.IdeaDate.ToString("yyyy-MM-dd") · @idea.Instrument</p>
                 <p>@idea.Thesis</p>
-                <p><strong>Risk notes:</strong> @idea.RiskNotes</p>
+                <dl class="idea-details">
+                    <dt>Entry trigger</dt>
+                    <dd>@DisplayOrPlaceholder(idea.EntryTrigger)</dd>
+                    <dt>Invalidation</dt>
+                    <dd>@DisplayOrPlaceholder(idea.Invalidation)</dd>
+                    <dt>Catalyst</dt>
+                    <dd>@DisplayOrPlaceholder(idea.Catalyst)</dd>
+                    <dt>Max loss</dt>
+                    <dd>@DisplayOrPlaceholder(idea.MaxLoss)</dd>
+                    <dt>Time horizon</dt>
+                    <dd>@DisplayOrPlaceholder(idea.TimeHorizon)</dd>
+                    <dt>Risk notes</dt>
+                    <dd>@DisplayOrPlaceholder(idea.RiskNotes)</dd>
+                    <dt>Post-mortem</dt>
+                    <dd>@DisplayOrPlaceholder(idea.PostMortem)</dd>
+                </dl>
             </article>
         }
     }
@@ -82,6 +125,9 @@
         draft = NewDraft();
         ideas = await JournalService.GetTradeIdeasAsync();
     }
+
+    private static string DisplayOrPlaceholder(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "Not specified" : value;
 
     private static TradeIdea NewDraft() => new()
     {

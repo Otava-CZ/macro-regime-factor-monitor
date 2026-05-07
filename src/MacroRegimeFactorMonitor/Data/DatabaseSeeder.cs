@@ -17,12 +17,10 @@ public static class DatabaseSeeder
 
         var factors = new[]
         {
-            CreateFactor("Inflation Pressure", "Inflation", "Tracks whether trend inflation is running hotter than neutral.", 0.22m, false, "Core CPI Trend", "BLS/FRED", "% y/y", 2.5m, 0.5m, 3.1m),
-            CreateFactor("Inflation Breadth", "Inflation", "Measures how broadly price pressure is distributed across components.", 0.18m, false, "Trimmed Mean CPI", "Cleveland Fed", "% y/y", 2.4m, 0.4m, 2.9m),
-            CreateFactor("Energy Shock", "Commodities", "Captures oil and energy pressure that can spill into inflation expectations.", 0.15m, false, "WTI Crude Oil", "EIA", "USD/bbl", 75m, 12m, 88m),
-            CreateFactor("Growth Stress", "Growth", "Summarizes downside stress in activity and labor-market momentum.", 0.20m, true, "ISM Manufacturing PMI", "ISM", "Index", 50m, 2m, 48.6m),
-            CreateFactor("Fiscal/Treasury Stress", "Rates", "Monitors Treasury-market and fiscal financing stress.", 0.13m, false, "10Y Treasury Term Premium", "NY Fed", "%", 0.25m, 0.35m, 0.72m),
-            CreateFactor("Market Complacency", "Markets", "Identifies whether risk pricing appears too relaxed versus macro risk.", 0.12m, false, "VIX Index", "Cboe", "Index", 18m, 5m, 14.2m)
+            CreateFactor("Inflation/stagflation pressure", "Inflation/stagflation pressure", "Tracks whether sticky inflation and commodity pressure are tightening the policy trade-off.", 0.30m, false, "Core CPI Trend", "BLS/FRED", "% y/y", 2.5m, 0.5m, 3.1m),
+            CreateFactor("Fiscal/Treasury stress", "Fiscal/Treasury stress", "Monitors Treasury-market and fiscal financing stress through term premium pressure.", 0.25m, false, "10Y Treasury Term Premium", "NY Fed", "%", 0.25m, 0.35m, 0.72m),
+            CreateFactor("Hard-landing pressure", "Hard-landing pressure", "Summarizes downside stress in activity and labor-market momentum.", 0.25m, true, "ISM Manufacturing PMI", "ISM", "Index", 50m, 2m, 48.6m),
+            CreateFactor("Market complacency/mispricing", "Market complacency/mispricing", "Identifies whether risk pricing appears too relaxed versus macro risks.", 0.20m, true, "VIX Index", "Cboe", "Index", 18m, 5m, 14.2m)
         };
 
         db.MacroFactors.AddRange(factors.Select(item => item.Factor));
@@ -66,9 +64,9 @@ public static class DatabaseSeeder
         db.WeeklyReviews.Add(new WeeklyReview
         {
             WeekEnding = SeedDate,
-            RegimeAssessment = "Defensive Slowdown",
-            KeyDevelopments = "Seed data shows inflation, energy, and rates stress offsetting growth momentum.",
-            RisksToWatch = "Watch whether inflation breadth narrows and whether Treasury stress eases."
+            RegimeAssessment = "Inflation/stagflation pressure",
+            KeyDevelopments = "Seed data shows inflation/stagflation pressure, Treasury stress, hard-landing pressure, and possible market complacency/mispricing.",
+            RisksToWatch = "Watch whether inflation cools, Treasury stress eases, activity stabilizes, and volatility reprices macro risk."
         });
 
         db.TradeIdeas.Add(new TradeIdea
@@ -78,7 +76,13 @@ public static class DatabaseSeeder
             Instrument = "Quality / low-volatility basket",
             Thesis = "Use the journal to track discretionary ideas suggested by the macro dashboard. This is not an execution or broker integration.",
             Status = "Watching",
-            RiskNotes = "Reassess if growth data improves or inflation pressure cools."
+            RiskNotes = "Reassess if growth data improves or inflation pressure cools.",
+            EntryTrigger = "Only consider after the dashboard still shows macro pressure and price action confirms defensive leadership.",
+            Invalidation = "Invalidate if inflation pressure cools, activity data rebounds, or defensive leadership fails.",
+            Catalyst = "Weekly review identifies persistent inflation/stagflation pressure or hard-landing pressure.",
+            MaxLoss = "Pre-defined discretionary risk budget; no automatic orders are placed.",
+            TimeHorizon = "Two to six weeks, reviewed weekly.",
+            PostMortem = "Complete after the idea is closed to compare thesis, trigger, catalyst, and outcome."
         });
 
         await db.SaveChangesAsync();
