@@ -36,8 +36,32 @@
                 <InputTextArea @bind-Value="draft.Thesis" />
             </label>
             <label class="wide">
+                Entry trigger
+                <InputTextArea @bind-Value="draft.EntryTrigger" />
+            </label>
+            <label class="wide">
+                Invalidation
+                <InputTextArea @bind-Value="draft.Invalidation" />
+            </label>
+            <label class="wide">
+                Catalyst
+                <InputTextArea @bind-Value="draft.Catalyst" />
+            </label>
+            <label>
+                Max loss
+                <InputText @bind-Value="draft.MaxLoss" />
+            </label>
+            <label>
+                Time horizon
+                <InputText @bind-Value="draft.TimeHorizon" />
+            </label>
+            <label class="wide">
                 Risk notes
                 <InputTextArea @bind-Value="draft.RiskNotes" />
+            </label>
+            <label class="wide">
+                Post-mortem
+                <InputTextArea @bind-Value="draft.PostMortem" />
             </label>
         </div>
         <button type="submit">Save idea</button>
@@ -61,7 +85,36 @@
                 </div>
                 <p>@idea.IdeaDate.ToString("yyyy-MM-dd") · @idea.Instrument</p>
                 <p>@idea.Thesis</p>
-                <p><strong>Risk notes:</strong> @idea.RiskNotes</p>
+                <dl class="idea-details">
+                    <div>
+                        <dt>Entry trigger</dt>
+                        <dd>@Display(idea.EntryTrigger)</dd>
+                    </div>
+                    <div>
+                        <dt>Invalidation</dt>
+                        <dd>@Display(idea.Invalidation)</dd>
+                    </div>
+                    <div>
+                        <dt>Catalyst</dt>
+                        <dd>@Display(idea.Catalyst)</dd>
+                    </div>
+                    <div>
+                        <dt>Max loss</dt>
+                        <dd>@Display(idea.MaxLoss)</dd>
+                    </div>
+                    <div>
+                        <dt>Time horizon</dt>
+                        <dd>@Display(idea.TimeHorizon)</dd>
+                    </div>
+                    <div>
+                        <dt>Risk notes</dt>
+                        <dd>@Display(idea.RiskNotes)</dd>
+                    </div>
+                    <div>
+                        <dt>Post-mortem</dt>
+                        <dd>@Display(idea.PostMortem)</dd>
+                    </div>
+                </dl>
             </article>
         }
     }
@@ -89,4 +142,6 @@
         Title = string.Empty,
         Status = "Watching"
     };
+
+    private static string Display(string value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
 }

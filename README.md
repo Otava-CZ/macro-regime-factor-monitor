@@ -18,7 +18,8 @@ The app keeps the original weighted scoring idea, but stores factors, indicators
   5. Fiscal/Treasury Stress
   6. Market Complacency
 - Simple weekly review page.
-- Simple trade idea journal page.
+- Trade idea journal page with entry trigger, invalidation, catalyst, max loss, time horizon, risk notes, and post-mortem fields.
+- Startup-time SQLite schema upgrade for local databases created by earlier versions of the app.
 
 ## Development environment
 
@@ -51,6 +52,22 @@ Open the repository in the Dev Container so `dotnet` is available for restore, b
 
 On first startup, the app creates a local SQLite database file named `macro-regime.db` in the working directory and seeds it with the initial macro factors, one indicator per factor, latest observations, factor scores, a sample weekly review, and a sample trade idea.
 
+## Local SQLite schema upgrades
+
+The app uses `EnsureCreatedAsync` for the lightweight local SQLite store and then runs a startup schema upgrade step. Existing `macro-regime.db` files created before v0.3 are upgraded in place by adding the trade-journal columns for entry trigger, invalidation, catalyst, max loss, time horizon, and post-mortem notes when those columns are missing.
+
+To apply the upgrade locally:
+
+1. Stop any running instance of the app.
+2. Back up `macro-regime.db` if you want a rollback point.
+3. Pull the latest branch and run the app again:
+
+   ```powershell
+   dotnet run --project .\src\MacroRegimeFactorMonitor\MacroRegimeFactorMonitor.csproj
+   ```
+
+The startup upgrade is idempotent, so re-running the app will not duplicate columns.
+
 ## Scoring approach
 
 For each seeded factor, the app computes a normalized raw score from its indicator observation:
@@ -60,7 +77,7 @@ raw score = ((value - baseline) / volatility) * direction
 weighted score = raw score * factor weight
 ```
 
-`direction` is `1` when higher values are constructive for risk assets and `-1` when higher values are a macro risk. Weighted scores are summed into category scores and a composite dashboard score.
+`direction` is `1` when higher values are constructive for risk assets and `-1` when higher values are a macro risk. Weighted scores are summed into category scores and a composite dashboard score. The dashboard then derives an interpretation layer from the persisted scores, including a risk posture, primary macro drag, primary macro support, and weekly review focus.
 
 ## Regime thresholds
 
