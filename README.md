@@ -18,7 +18,7 @@ The app keeps the original weighted scoring idea, but stores factors, indicators
   5. Fiscal/Treasury Stress
   6. Market Complacency
 - Simple weekly review page.
-- Simple trade idea journal page.
+- Trade idea journal page with entry trigger, invalidation, catalyst, max-loss, time-horizon, and post-mortem fields.
 
 ## Development environment
 
@@ -50,6 +50,12 @@ Open the repository in the Dev Container so `dotnet` is available for restore, b
 5. Open the local URL printed by `dotnet run`, such as `https://localhost:5001` or `http://localhost:5000`.
 
 On first startup, the app creates a local SQLite database file named `macro-regime.db` in the working directory and seeds it with the initial macro factors, one indicator per factor, latest observations, factor scores, a sample weekly review, and a sample trade idea.
+
+## Local SQLite schema upgrades
+
+Startup also runs a lightweight local schema upgrade before seeding. Existing `macro-regime.db` files created before v0.3 are upgraded in place by adding the missing trade-journal columns (`EntryTrigger`, `Invalidation`, `Catalyst`, `MaxLoss`, `TimeHorizon`, and `PostMortem`) when they are not already present. Existing rows are preserved; the new text fields default to empty strings and `MaxLoss` remains nullable.
+
+If you want to rebuild from scratch during development, stop the app, delete the local `macro-regime.db` file, and run the app again.
 
 ## Scoring approach
 

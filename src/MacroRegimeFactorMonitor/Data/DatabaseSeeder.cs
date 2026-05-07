@@ -78,7 +78,13 @@ public static class DatabaseSeeder
             Instrument = "Quality / low-volatility basket",
             Thesis = "Use the journal to track discretionary ideas suggested by the macro dashboard. This is not an execution or broker integration.",
             Status = "Watching",
-            RiskNotes = "Reassess if growth data improves or inflation pressure cools."
+            RiskNotes = "Reassess if growth data improves or inflation pressure cools.",
+            EntryTrigger = "Wait for the dashboard interpretation to remain Defensive Slowdown for another weekly review.",
+            Invalidation = "Retire the idea if the composite score returns to Neutral / Transition or better.",
+            Catalyst = "Upcoming inflation breadth and labor-market releases.",
+            MaxLoss = 2500m,
+            TimeHorizon = "2-6 weeks",
+            PostMortem = "Complete after the idea is closed, including whether the macro catalyst actually mattered."
         });
 
         await db.SaveChangesAsync();

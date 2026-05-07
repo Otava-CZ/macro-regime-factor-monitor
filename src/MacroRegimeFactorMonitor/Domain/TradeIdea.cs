@@ -12,5 +12,11 @@ public sealed class TradeIdea
     public string Instrument { get; set; } = string.Empty;
     public string Status { get; set; } = "Watching";
     public string RiskNotes { get; set; } = string.Empty;
+    public string EntryTrigger { get; set; } = string.Empty;
+    public string Invalidation { get; set; } = string.Empty;
+    public string Catalyst { get; set; } = string.Empty;
+    public decimal? MaxLoss { get; set; }
+    public string TimeHorizon { get; set; } = string.Empty;
+    public string PostMortem { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }

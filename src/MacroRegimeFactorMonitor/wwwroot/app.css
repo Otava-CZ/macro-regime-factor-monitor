@@ -199,3 +199,28 @@ button {
         padding: 1rem;
     }
 }
+
+.idea-details {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin: 1rem 0 0;
+}
+
+.idea-details div {
+    align-items: start;
+    display: grid;
+    gap: 0.25rem;
+    justify-content: stretch;
+}
+
+.idea-details dt {
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.idea-details dd {
+    margin: 0;
+}
