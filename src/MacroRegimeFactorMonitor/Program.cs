@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+ConfigureLogging(builder);
 ConfigureServices(builder);
 
 var app = builder.Build();
@@ -15,6 +16,14 @@ await RunStartupSyncAsync(app);
 MapEndpoints(app);
 
 app.Run();
+
+
+static void ConfigureLogging(WebApplicationBuilder builder)
+{
+    // FRED requires api_key in the query string, so suppress HttpClient
+    // informational request/response logs that include full URLs.
+    builder.Logging.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
+}
 
 static void ConfigureServices(WebApplicationBuilder builder)
 {
