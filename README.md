@@ -149,6 +149,8 @@ dotnet user-secrets set "Fred:ApiKey" "<your-fred-api-key>" --project .\src\Macr
 
 The default FRED base URL is `https://api.stlouisfed.org/fred`. You normally do not need to override it, but if needed you can set `Fred:BaseUrl` through user secrets or environment variables. No real FRED API key should be committed to `appsettings.json` or any other tracked file.
 
+FRED requires the API key to be sent as the `api_key` query parameter on API requests. The app suppresses `System.Net.Http.HttpClient` informational request/response logging so framework logs do not write full FRED request URLs, including query-string secrets, while application warnings and errors remain enabled.
+
 ## Manual import testing
 
 v0.7.3 updates the controlled **Data Imports** admin page at `/imports` for manually testing existing `ExternalSeries` mappings through the app. The page lists active mappings, provides optional from/to date filters, and can trigger the import service for one mapping at a time.
