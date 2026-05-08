@@ -26,7 +26,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
     builder.Services.AddScoped<FactorScoringService>();
     builder.Services.AddScoped<JournalService>();
     builder.Services.AddScoped<StartupSyncService>();
-    builder.Services.AddScoped<IDataSourceClient, FredDataSourceClient>();
+    builder.Services.AddHttpClient<IDataSourceClient, FredDataSourceClient>();
     builder.Services.AddScoped<IDataSourceClient, BlsDataSourceClient>();
     builder.Services.AddScoped<IDataSourceClient, EiaDataSourceClient>();
     builder.Services.AddScoped<IDataSourceClient, TreasuryFiscalDataClient>();
