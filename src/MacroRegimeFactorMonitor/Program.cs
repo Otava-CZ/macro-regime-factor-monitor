@@ -32,6 +32,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
     builder.Services.AddScoped<IDataSourceClient, TreasuryFiscalDataClient>();
     builder.Services.AddScoped<IDataSourceClientFactory, DataSourceClientFactory>();
     builder.Services.AddScoped<IObservationImportService, ObservationImportService>();
+    builder.Services.AddScoped<ImportAdminService>();
 }
 
 static void ConfigureMiddleware(WebApplication app)
