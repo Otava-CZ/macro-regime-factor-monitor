@@ -4,13 +4,13 @@
 <PageTitle>Data Imports</PageTitle>
 
 <h1>Data Imports</h1>
-<p class="lede">Run controlled, manual imports for existing external series mappings. Imported observations are counted for testing, but they are not persisted to indicator observations yet.</p>
+<p class="lede">Run controlled, manual imports for existing external series mappings. Fetched observations are persisted to IndicatorObservations, while dashboard scoring remains unchanged.</p>
 
 <section class="card">
     <div class="section-heading">
         <div>
             <h2>ExternalSeries mappings</h2>
-            <p class="section-note">Active mappings are shown by default. Use the date fields to limit a manual import window.</p>
+            <p class="section-note">Active mappings are shown by default. Use the date fields to limit a manual import window. Existing observations are skipped unless force refresh is selected.</p>
         </div>
         <label class="checkbox-label">
             <InputCheckbox @bind-Value="includeInactive" @bind-Value:after="LoadExternalSeriesAsync" />
@@ -68,6 +68,10 @@
                                         <label>
                                             To
                                             <InputDate TValue="DateOnly?" @bind-Value="series.ToDate" />
+                                        </label>
+                                        <label class="checkbox-label">
+                                            <InputCheckbox @bind-Value="series.ForceRefresh" />
+                                            Force refresh existing observations
                                         </label>
                                         <button type="button" disabled="@isImportRunning" @onclick="() => RunImportAsync(series)">Run import</button>
                                     </div>
@@ -218,7 +222,7 @@
                 ExternalSeriesId = series.Id,
                 FromDate = series.FromDate,
                 ToDate = series.ToDate,
-                ForceRefresh = false
+                ForceRefresh = series.ForceRefresh
             });
 
             await LoadPageDataAsync();
