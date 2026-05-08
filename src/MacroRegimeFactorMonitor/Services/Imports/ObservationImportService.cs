@@ -55,6 +55,8 @@ public sealed class ObservationImportService(
             importRun.RowsInserted = 0;
             importRun.RowsUpdated = 0;
             importRun.Notes = "Import skeleton completed without persisting observations. Upsert, validation, and import-run observation linkage will be implemented in a later PR.";
+            externalSeries.LastSuccessfulImportUtc = importRun.FinishedAtUtc;
+            externalSeries.UpdatedAtUtc = importRun.FinishedAtUtc;
 
             await dbContext.SaveChangesAsync(cancellationToken);
 

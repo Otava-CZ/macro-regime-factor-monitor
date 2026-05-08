@@ -1,0 +1,234 @@
+@page "/imports"
+@inject ImportAdminService ImportAdminService
+
+<PageTitle>Data Imports</PageTitle>
+
+<h1>Data Imports</h1>
+<p class="lede">Run controlled, manual imports for existing external series mappings. Imported observations are counted for testing, but they are not persisted to indicator observations yet.</p>
+
+<section class="card">
+    <div class="section-heading">
+        <div>
+            <h2>ExternalSeries mappings</h2>
+            <p class="section-note">Active mappings are shown by default. Use the date fields to limit a manual import window.</p>
+        </div>
+        <label class="checkbox-label">
+            <InputCheckbox @bind-Value="includeInactive" @bind-Value:after="LoadExternalSeriesAsync" />
+            Show inactive
+        </label>
+    </div>
+
+    @if (externalSeries is null)
+    {
+        <p>Loading external series...</p>
+    }
+    else if (externalSeries.Count == 0)
+    {
+        <p>No external series mappings are available.</p>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>Data source</th>
+                        <th>Indicator</th>
+                        <th>External series</th>
+                        <th>Frequency</th>
+                        <th>Units</th>
+                        <th>Transform</th>
+                        <th>Active</th>
+                        <th>Last successful import UTC</th>
+                        <th>Manual import</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var series in externalSeries)
+                    {
+                        <tr>
+                            <td>@series.Id</td>
+                            <td>@series.DataSourceName</td>
+                            <td>@series.IndicatorName</td>
+                            <td><code>@series.ExternalSeriesId</code></td>
+                            <td>@series.Frequency</td>
+                            <td>@series.Units</td>
+                            <td><code>@series.Transform</code></td>
+                            <td>@(series.IsActive ? "Yes" : "No")</td>
+                            <td>@FormatDateTime(series.LastSuccessfulImportUtc)</td>
+                            <td>
+                                @if (series.IsActive)
+                                {
+                                    <div class="inline-import-form">
+                                        <label>
+                                            From
+                                            <InputDate TValue="DateOnly?" @bind-Value="series.FromDate" />
+                                        </label>
+                                        <label>
+                                            To
+                                            <InputDate TValue="DateOnly?" @bind-Value="series.ToDate" />
+                                        </label>
+                                        <button type="button" disabled="@isImportRunning" @onclick="() => RunImportAsync(series)">Run import</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="section-note">Inactive</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@if (latestResult is not null)
+{
+    <section class="card result-card">
+        <h2>Latest manual import result</h2>
+        <div class="summary-grid">
+            <div class="metric-card">
+                <span>Status</span>
+                <strong>@latestResult.Status</strong>
+            </div>
+            <div class="metric-card">
+                <span>Rows read</span>
+                <strong>@latestResult.RowsRead</strong>
+            </div>
+            <div class="metric-card">
+                <span>Rows inserted</span>
+                <strong>@latestResult.RowsInserted</strong>
+            </div>
+            <div class="metric-card">
+                <span>Rows updated</span>
+                <strong>@latestResult.RowsUpdated</strong>
+            </div>
+            <div class="metric-card">
+                <span>Rows skipped</span>
+                <strong>@latestResult.RowsSkipped</strong>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(latestResult.ErrorMessage))
+        {
+            <p class="message error"><strong>Error:</strong> @latestResult.ErrorMessage</p>
+        }
+
+        @if (latestResult.Warnings.Count > 0)
+        {
+            <div class="message warning">
+                <strong>Warnings</strong>
+                <ul>
+                    @foreach (var warning in latestResult.Warnings)
+                    {
+                        <li>@warning</li>
+                    }
+                </ul>
+            </div>
+        }
+    </section>
+}
+
+<section class="card">
+    <h2>Latest DataImportRuns</h2>
+    @if (recentRuns is null)
+    {
+        <p>Loading import runs...</p>
+    }
+    else if (recentRuns.Count == 0)
+    {
+        <p>No import runs have been recorded yet.</p>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Started UTC</th>
+                        <th>Finished UTC</th>
+                        <th>Data source</th>
+                        <th>Status</th>
+                        <th class="number">Rows read</th>
+                        <th class="number">Rows inserted</th>
+                        <th class="number">Rows updated</th>
+                        <th>Error</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var run in recentRuns)
+                    {
+                        <tr>
+                            <td>@FormatDateTime(run.StartedAtUtc)</td>
+                            <td>@FormatDateTime(run.FinishedAtUtc)</td>
+                            <td>@run.DataSourceName</td>
+                            <td><span class="pill">@run.Status</span></td>
+                            <td class="number">@run.RowsRead</td>
+                            <td class="number">@run.RowsInserted</td>
+                            <td class="number">@run.RowsUpdated</td>
+                            <td>@run.ErrorMessage</td>
+                            <td>@run.Notes</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private bool includeInactive;
+    private bool isImportRunning;
+    private List<ExternalSeriesAdminRow>? externalSeries;
+    private List<DataImportRunAdminRow>? recentRuns;
+    private ImportSeriesResult? latestResult;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageDataAsync();
+    }
+
+    private async Task LoadPageDataAsync()
+    {
+        await LoadExternalSeriesAsync();
+        await LoadRecentRunsAsync();
+    }
+
+    private async Task LoadExternalSeriesAsync()
+    {
+        externalSeries = await ImportAdminService.GetExternalSeriesAsync(includeInactive);
+    }
+
+    private async Task LoadRecentRunsAsync()
+    {
+        recentRuns = await ImportAdminService.GetRecentImportRunsAsync();
+    }
+
+    private async Task RunImportAsync(ExternalSeriesAdminRow series)
+    {
+        isImportRunning = true;
+        try
+        {
+            latestResult = await ImportAdminService.RunImportAsync(new ImportSeriesRequest
+            {
+                ExternalSeriesId = series.Id,
+                FromDate = series.FromDate,
+                ToDate = series.ToDate,
+                ForceRefresh = false
+            });
+
+            await LoadPageDataAsync();
+        }
+        finally
+        {
+            isImportRunning = false;
+        }
+    }
+
+    private static string FormatDateTime(DateTime? value) =>
+        value.HasValue ? value.Value.ToString("yyyy-MM-dd HH:mm:ss") : "—";
+}
