@@ -29,6 +29,7 @@ Raw data -> measurable factor scores -> macro interpretation -> trade candidates
 - Weekly review page for manual macro notes.
 - Trade idea journal page with fields for thesis, entry trigger, invalidation, catalyst, max loss, time horizon, risk notes, and post-mortem.
 - Startup SQLite schema upgrade that adds v0.3 trade idea columns to existing local `macro-regime.db` files; PostgreSQL uses EF Core migrations.
+- Data Imports admin page for manually testing active `ExternalSeries` mappings without persisting imported observations.
 
 ## Development environment
 
@@ -148,6 +149,13 @@ dotnet user-secrets set "Fred:ApiKey" "<your-fred-api-key>" --project .\src\Macr
 
 The default FRED base URL is `https://api.stlouisfed.org/fred`. You normally do not need to override it, but if needed you can set `Fred:BaseUrl` through user secrets or environment variables. No real FRED API key should be committed to `appsettings.json` or any other tracked file.
 
+## Manual import testing
+
+v0.7.2 adds a controlled **Data Imports** admin page at `/imports` for manually testing existing `ExternalSeries` mappings through the app. The page lists active mappings, provides optional from/to date filters, and can trigger the import service for one mapping at a time.
+
+FRED imports can be tested from this page when `Fred:ApiKey` is configured outside source control. Each attempt writes a `DataImportRun` with timestamps, status, row counts, notes, and any error message so import behavior can be reviewed without changing scoring.
+
+Observation persistence is still intentionally deferred in v0.7.2: fetched rows are counted as read, `RowsInserted` and `RowsUpdated` remain zero, and the fetched observations are skipped rather than inserted into `IndicatorObservations`. The dashboard continues to use the current persisted `FactorScores` and remains unchanged.
 
 ## Import architecture
 
