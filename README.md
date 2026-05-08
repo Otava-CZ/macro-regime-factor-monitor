@@ -157,6 +157,16 @@ FRED imports can be tested from this page when `Fred:ApiKey` is configured outsi
 
 v0.7.3 persists fetched observations into `IndicatorObservations`. Existing observations with the same `IndicatorId` and `ObservationDate` are skipped by default, so seeded/sample observations are not overwritten during normal manual imports. `ForceRefresh` controls overwrites when exposed or used, and it defaults to false in the admin UI. The dashboard continues to use the current persisted `FactorScores`, imported observations are not yet converted into `FactorScores` automatically, and scoring behavior remains unchanged.
 
+## Operational manual refresh
+
+v0.7.4 keeps all import activity manually controlled from the **Data Imports** admin page at `/imports`. Operators can refresh one active `ExternalSeries` with explicit from/to dates or click **Refresh all active FRED series** to sequentially refresh every active FRED mapping (`CPILFESL`, `VIXCLS`, and `DGS10` when seeded and active). No scheduled Quartz job is registered, no import runs automatically on app startup, and no API keys or secrets are displayed or stored in source control.
+
+The refresh-all action calculates overlap windows by frequency before each per-series import: daily series re-fetch from the latest persisted observation date minus 7 days, monthly series re-fetch from the latest persisted observation date minus 6 months, unknown frequencies re-fetch from the latest persisted observation date minus 30 days, and series with no persisted observations default to the last 2 years. Refresh-all always uses `ForceRefresh = true` so overlap windows can capture revised FRED values. Each series is attempted independently; a failed series is reported but does not stop later series.
+
+The `/imports` page now shows informational freshness badges for each external series based on the latest persisted `IndicatorObservations` row: daily series are fresh within 5 calendar days, monthly series within 45 calendar days, unknown frequencies within 14 calendar days, and series without observations are marked missing. These badges are display-only and do not block imports. The page also shows a read-only recent observation history table so operators can inspect persisted observations and their `DataImportRun` links.
+
+Dashboard and scoring behavior remain unchanged in v0.7.4. Imported observations are not automatically converted into `FactorScores`, there is no automatic `FactorScore` recalculation, and Quartz scheduled refresh remains intentionally deferred.
+
 ## Import architecture
 
 v0.6.3 adds the import architecture skeleton only. The application now has DTOs, source-client interfaces, a source-client factory, placeholder clients, and an observation import service structure that future PRs can extend without changing dashboard, scoring, journal, or trading behavior.

@@ -13,9 +13,16 @@
             <p class="section-note">Active mappings are shown by default. Use the date fields to limit a manual import window. Existing observations are skipped unless force refresh is selected.</p>
         </div>
         <label class="checkbox-label">
-            <InputCheckbox @bind-Value="includeInactive" @bind-Value:after="LoadExternalSeriesAsync" />
+            <InputCheckbox @bind-Value="includeInactive" @bind-Value:after="LoadExternalSeriesAsync" disabled="@IsBusy" />
             Show inactive
         </label>
+    </div>
+
+    <div class="action-row">
+        <button type="button" disabled="@IsBusy" @onclick="RefreshAllActiveFredSeriesAsync">
+            @(isBatchRunning ? "Refreshing active FRED series..." : "Refresh all active FRED series")
+        </button>
+        <span class="section-note">Manual only. Uses overlap windows and ForceRefresh to catch revised FRED observations.</span>
     </div>
 
     @if (externalSeries is null)
@@ -37,6 +44,9 @@
                         <th>Indicator</th>
                         <th>External series</th>
                         <th>Frequency</th>
+                        <th>Freshness</th>
+                        <th>Latest observation</th>
+                        <th>Days since latest</th>
                         <th>Units</th>
                         <th>Transform</th>
                         <th>Active</th>
@@ -53,6 +63,9 @@
                             <td>@series.IndicatorName</td>
                             <td><code>@series.ExternalSeriesId</code></td>
                             <td>@series.Frequency</td>
+                            <td><span class="pill @FreshnessCssClass(series.FreshnessStatus)">@series.FreshnessStatus</span></td>
+                            <td>@FormatDate(series.LatestObservationDate)</td>
+                            <td>@FormatDays(series.DaysSinceLatestObservation)</td>
                             <td>@series.Units</td>
                             <td><code>@series.Transform</code></td>
                             <td>@(series.IsActive ? "Yes" : "No")</td>
@@ -63,17 +76,19 @@
                                     <div class="inline-import-form">
                                         <label>
                                             From
-                                            <InputDate TValue="DateOnly?" @bind-Value="series.FromDate" />
+                                            <InputDate TValue="DateOnly?" @bind-Value="series.FromDate" disabled="@IsBusy" />
                                         </label>
                                         <label>
                                             To
-                                            <InputDate TValue="DateOnly?" @bind-Value="series.ToDate" />
+                                            <InputDate TValue="DateOnly?" @bind-Value="series.ToDate" disabled="@IsBusy" />
                                         </label>
                                         <label class="checkbox-label">
-                                            <InputCheckbox @bind-Value="series.ForceRefresh" />
+                                            <InputCheckbox @bind-Value="series.ForceRefresh" disabled="@IsBusy" />
                                             Force refresh existing observations
                                         </label>
-                                        <button type="button" disabled="@isImportRunning" @onclick="() => RunImportAsync(series)">Run import</button>
+                                        <button type="button" disabled="@IsBusy" @onclick="() => RunImportAsync(series)">
+                                            @(isImportRunning ? "Import running..." : "Run import")
+                                        </button>
                                     </div>
                                 }
                                 else
@@ -88,6 +103,57 @@
         </div>
     }
 </section>
+
+@if (latestBatchResult is not null)
+{
+    <section class="card result-card">
+        <h2>Latest refresh-all result</h2>
+        <div class="summary-grid">
+            <div class="metric-card"><span>Status</span><strong>@latestBatchResult.Status</strong></div>
+            <div class="metric-card"><span>Series attempted</span><strong>@latestBatchResult.SeriesAttempted</strong></div>
+            <div class="metric-card"><span>Series completed</span><strong>@latestBatchResult.SeriesCompleted</strong></div>
+            <div class="metric-card"><span>Series failed</span><strong>@latestBatchResult.SeriesFailed</strong></div>
+            <div class="metric-card"><span>Total rows read</span><strong>@latestBatchResult.TotalRowsRead</strong></div>
+            <div class="metric-card"><span>Total rows inserted</span><strong>@latestBatchResult.TotalRowsInserted</strong></div>
+            <div class="metric-card"><span>Total rows updated</span><strong>@latestBatchResult.TotalRowsUpdated</strong></div>
+            <div class="metric-card"><span>Total rows skipped</span><strong>@latestBatchResult.TotalRowsSkipped</strong></div>
+        </div>
+
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>External series</th>
+                        <th>Window</th>
+                        <th>Status</th>
+                        <th class="number">Read</th>
+                        <th class="number">Inserted</th>
+                        <th class="number">Updated</th>
+                        <th class="number">Skipped</th>
+                        <th>Error</th>
+                        <th>Warnings</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var result in latestBatchResult.SeriesResults)
+                    {
+                        <tr>
+                            <td><code>@result.ExternalSeriesCode</code></td>
+                            <td>@FormatDate(result.FromDate) to @FormatDate(result.ToDate)</td>
+                            <td><span class="pill">@result.Status</span></td>
+                            <td class="number">@result.RowsRead</td>
+                            <td class="number">@result.RowsInserted</td>
+                            <td class="number">@result.RowsUpdated</td>
+                            <td class="number">@result.RowsSkipped</td>
+                            <td>@result.ErrorMessage</td>
+                            <td>@string.Join(" ", result.Warnings)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
 
 @if (latestResult is not null)
 {
@@ -135,6 +201,71 @@
         }
     </section>
 }
+
+<section class="card">
+    <div class="section-heading">
+        <div>
+            <h2>Imported observations</h2>
+            <p class="section-note">Recent persisted observations, newest first. Read-only view limited to 50 rows.</p>
+        </div>
+        <label>
+            ExternalSeries
+            <InputSelect @bind-Value="selectedObservationExternalSeriesId" @bind-Value:after="LoadRecentObservationsAsync" disabled="@IsBusy">
+                <option value="">All series</option>
+                @if (externalSeries is not null)
+                {
+                    @foreach (var series in externalSeries)
+                    {
+                        <option value="@series.Id">@series.ExternalSeriesId</option>
+                    }
+                }
+            </InputSelect>
+        </label>
+    </div>
+
+    @if (recentObservations is null)
+    {
+        <p>Loading observations...</p>
+    }
+    else if (recentObservations.Count == 0)
+    {
+        <p>No imported observations match the current filter.</p>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ObservationDate</th>
+                        <th>Indicator.Name</th>
+                        <th>ExternalSeries.ExternalSeriesId</th>
+                        <th class="number">Value</th>
+                        <th>Source</th>
+                        <th>DataImportRunId</th>
+                        <th>CreatedAtUtc</th>
+                        <th>UpdatedAtUtc</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var observation in recentObservations)
+                    {
+                        <tr>
+                            <td>@FormatDate(observation.ObservationDate)</td>
+                            <td>@observation.IndicatorName</td>
+                            <td><code>@observation.ExternalSeriesCode</code></td>
+                            <td class="number">@observation.Value</td>
+                            <td>@observation.Source</td>
+                            <td>@FormatNullableInt(observation.DataImportRunId)</td>
+                            <td>@FormatDateTime(observation.CreatedAtUtc)</td>
+                            <td>@FormatDateTime(observation.UpdatedAtUtc)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
 
 <section class="card">
     <h2>Latest DataImportRuns</h2>
@@ -187,9 +318,15 @@
 @code {
     private bool includeInactive;
     private bool isImportRunning;
+    private bool isBatchRunning;
+    private int? selectedObservationExternalSeriesId;
     private List<ExternalSeriesAdminRow>? externalSeries;
     private List<DataImportRunAdminRow>? recentRuns;
+    private List<ImportedObservationAdminRow>? recentObservations;
     private ImportSeriesResult? latestResult;
+    private ImportBatchResult? latestBatchResult;
+
+    private bool IsBusy => isImportRunning || isBatchRunning;
 
     protected override async Task OnInitializedAsync()
     {
@@ -199,6 +336,7 @@
     private async Task LoadPageDataAsync()
     {
         await LoadExternalSeriesAsync();
+        await LoadRecentObservationsAsync();
         await LoadRecentRunsAsync();
     }
 
@@ -212,9 +350,15 @@
         recentRuns = await ImportAdminService.GetRecentImportRunsAsync();
     }
 
+    private async Task LoadRecentObservationsAsync()
+    {
+        recentObservations = await ImportAdminService.GetRecentObservationsAsync(selectedObservationExternalSeriesId);
+    }
+
     private async Task RunImportAsync(ExternalSeriesAdminRow series)
     {
         isImportRunning = true;
+        latestBatchResult = null;
         try
         {
             latestResult = await ImportAdminService.RunImportAsync(new ImportSeriesRequest
@@ -233,6 +377,38 @@
         }
     }
 
+    private async Task RefreshAllActiveFredSeriesAsync()
+    {
+        isBatchRunning = true;
+        latestResult = null;
+        try
+        {
+            latestBatchResult = await ImportAdminService.RefreshAllActiveFredSeriesAsync();
+            await LoadPageDataAsync();
+        }
+        finally
+        {
+            isBatchRunning = false;
+        }
+    }
+
     private static string FormatDateTime(DateTime? value) =>
         value.HasValue ? value.Value.ToString("yyyy-MM-dd HH:mm:ss") : "—";
+
+    private static string FormatDate(DateOnly? value) =>
+        value.HasValue ? FormatDate(value.Value) : "—";
+
+    private static string FormatDate(DateOnly value) => value.ToString("yyyy-MM-dd");
+
+    private static string FormatDays(int? value) => value.HasValue ? value.Value.ToString() : "—";
+
+    private static string FormatNullableInt(int? value) => value.HasValue ? value.Value.ToString() : "—";
+
+    private static string FreshnessCssClass(string status) => status switch
+    {
+        FreshnessStatus.Fresh => "pill-success",
+        FreshnessStatus.Stale => "pill-warning",
+        FreshnessStatus.Missing => "pill-muted",
+        _ => string.Empty
+    };
 }
