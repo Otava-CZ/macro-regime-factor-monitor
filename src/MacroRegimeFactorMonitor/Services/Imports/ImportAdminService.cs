@@ -88,6 +88,7 @@ public sealed class ExternalSeriesAdminRow
     public DateTime? LastSuccessfulImportUtc { get; set; }
     public DateOnly? FromDate { get; set; }
     public DateOnly? ToDate { get; set; }
+    public bool ForceRefresh { get; set; }
 }
 
 public sealed class DataImportRunAdminRow

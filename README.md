@@ -123,11 +123,11 @@ Historical macro data ingestion is intended to be source-driven rather than copy
 - `DataImportRuns` will audit each import attempt with its source, start/finish timestamps, status, row counts, errors, and notes.
 - `IndicatorObservations` stores normalized observations used by the app and now includes nullable source/import tracking fields for external series, import runs, source names, release dates, vintage dates, and timestamps.
 
-v0.7.1 implements the FRED observations API client for existing FRED `ExternalSeries` mappings only. BLS, EIA, and Treasury clients remain placeholders, no API keys or secrets are committed, and fetched observations are not persisted to `IndicatorObservations` yet.
+v0.7.3 persists fetched FRED observations into `IndicatorObservations` for existing FRED `ExternalSeries` mappings only. BLS, EIA, and Treasury clients remain placeholders, no API keys or secrets are committed, and dashboard/scoring behavior remains unchanged.
 
 ## Initial FRED series mappings
 
-v0.7.0 seeds only the first reviewed FRED `ExternalSeries` mappings for current macro indicators. v0.7.1 can fetch observations for these mappings through the import service when a FRED API key is configured, but it still does not persist fetched observations, import history into scoring, or change dashboard/scoring behavior.
+v0.7.0 seeds only the first reviewed FRED `ExternalSeries` mappings for current macro indicators. v0.7.3 can fetch observations for these mappings through the import service when a FRED API key is configured and persist them to `IndicatorObservations`, but it still does not import history into scoring or change dashboard/scoring behavior.
 
 | Indicator | FRED series | Endpoint | Frequency | Units | Transform |
 | --- | --- | --- | --- | --- | --- |
@@ -139,7 +139,7 @@ Other indicators intentionally remain unmapped until their source and series cho
 
 ## FRED API configuration
 
-v0.7.1 can fetch FRED observations through the import service for the existing `CPILFESL`, `VIXCLS`, and `DGS10` mappings. The fetched rows are counted in `DataImportRuns`, but observation persistence is intentionally deferred: no `IndicatorObservations` rows are inserted or updated by this version. Persistence/upsert support will come in a later PR.
+v0.7.3 can fetch FRED observations through the import service for the existing `CPILFESL`, `VIXCLS`, and `DGS10` mappings. The fetched rows are counted in `DataImportRuns` and are safely upserted into `IndicatorObservations` by `IndicatorId` plus `ObservationDate`. Existing observations are skipped by default and are overwritten only when `ForceRefresh` is explicitly enabled.
 
 Store the FRED API key outside source control. For local development, use .NET user secrets from the repository root:
 
@@ -151,11 +151,11 @@ The default FRED base URL is `https://api.stlouisfed.org/fred`. You normally do 
 
 ## Manual import testing
 
-v0.7.2 adds a controlled **Data Imports** admin page at `/imports` for manually testing existing `ExternalSeries` mappings through the app. The page lists active mappings, provides optional from/to date filters, and can trigger the import service for one mapping at a time.
+v0.7.3 updates the controlled **Data Imports** admin page at `/imports` for manually testing existing `ExternalSeries` mappings through the app. The page lists active mappings, provides optional from/to date filters, and can trigger the import service for one mapping at a time.
 
 FRED imports can be tested from this page when `Fred:ApiKey` is configured outside source control. Each attempt writes a `DataImportRun` with timestamps, status, row counts, notes, and any error message so import behavior can be reviewed without changing scoring.
 
-Observation persistence is still intentionally deferred in v0.7.2: fetched rows are counted as read, `RowsInserted` and `RowsUpdated` remain zero, and the fetched observations are skipped rather than inserted into `IndicatorObservations`. The dashboard continues to use the current persisted `FactorScores` and remains unchanged.
+v0.7.3 persists fetched observations into `IndicatorObservations`. Existing observations with the same `IndicatorId` and `ObservationDate` are skipped by default, so seeded/sample observations are not overwritten during normal manual imports. `ForceRefresh` controls overwrites when exposed or used, and it defaults to false in the admin UI. The dashboard continues to use the current persisted `FactorScores`, imported observations are not yet converted into `FactorScores` automatically, and scoring behavior remains unchanged.
 
 ## Import architecture
 
@@ -164,8 +164,8 @@ v0.6.3 adds the import architecture skeleton only. The application now has DTOs,
 - The FRED client can call `/series/observations` for existing FRED mappings when `Fred:ApiKey` is configured; BLS, EIA, and Treasury Fiscal Data clients intentionally remain placeholders.
 - No API keys or secrets are introduced.
 - Import attempts are audited through `DataImportRuns`, with start/finish timestamps, status, row counts, notes, and errors.
-- Fetched observations will be normalized into `IndicatorObservations` in a future PR while preserving existing data and linking imported rows back to their `DataImportRun`.
-- This version can fetch FRED rows for review, but it does not insert or update observations.
+- Fetched observations are normalized into `IndicatorObservations` while preserving existing data by default and linking imported rows back to their `DataImportRun`.
+- This version can fetch FRED rows for review and insert or force-refresh observations, but it does not recalculate or update dashboard `FactorScores`.
 
 ## Scoring approach
 
