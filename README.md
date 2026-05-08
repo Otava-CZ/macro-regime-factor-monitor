@@ -122,11 +122,11 @@ Historical macro data ingestion is intended to be source-driven rather than copy
 - `DataImportRuns` will audit each import attempt with its source, start/finish timestamps, status, row counts, errors, and notes.
 - `IndicatorObservations` stores normalized observations used by the app and now includes nullable source/import tracking fields for external series, import runs, source names, release dates, vintage dates, and timestamps.
 
-Future PRs will add importer clients for official/public APIs, including the FRED observations API, BLS public timeseries API, EIA API v2, and Treasury Fiscal Data REST API. This PR does not implement live API fetching, does not import historical datasets, and does not add API keys.
+v0.7.1 implements the FRED observations API client for existing FRED `ExternalSeries` mappings only. BLS, EIA, and Treasury clients remain placeholders, no API keys or secrets are committed, and fetched observations are not persisted to `IndicatorObservations` yet.
 
 ## Initial FRED series mappings
 
-v0.7.0 seeds only the first reviewed FRED `ExternalSeries` mappings for current macro indicators. These mappings prepare the database for future import work, but they do not implement the FRED API client, make live API calls, fetch observations, import history, or change dashboard/scoring behavior.
+v0.7.0 seeds only the first reviewed FRED `ExternalSeries` mappings for current macro indicators. v0.7.1 can fetch observations for these mappings through the import service when a FRED API key is configured, but it still does not persist fetched observations, import history into scoring, or change dashboard/scoring behavior.
 
 | Indicator | FRED series | Endpoint | Frequency | Units | Transform |
 | --- | --- | --- | --- | --- | --- |
@@ -136,15 +136,28 @@ v0.7.0 seeds only the first reviewed FRED `ExternalSeries` mappings for current 
 
 Other indicators intentionally remain unmapped until their source and series choices are reviewed. In particular, this version does not add FRED mappings for Trimmed Mean CPI, WTI Crude Oil, or ISM Manufacturing PMI.
 
+## FRED API configuration
+
+v0.7.1 can fetch FRED observations through the import service for the existing `CPILFESL`, `VIXCLS`, and `DGS10` mappings. The fetched rows are counted in `DataImportRuns`, but observation persistence is intentionally deferred: no `IndicatorObservations` rows are inserted or updated by this version. Persistence/upsert support will come in a later PR.
+
+Store the FRED API key outside source control. For local development, use .NET user secrets from the repository root:
+
+```powershell
+dotnet user-secrets set "Fred:ApiKey" "<your-fred-api-key>" --project .\src\MacroRegimeFactorMonitor\MacroRegimeFactorMonitor.csproj
+```
+
+The default FRED base URL is `https://api.stlouisfed.org/fred`. You normally do not need to override it, but if needed you can set `Fred:BaseUrl` through user secrets or environment variables. No real FRED API key should be committed to `appsettings.json` or any other tracked file.
+
+
 ## Import architecture
 
 v0.6.3 adds the import architecture skeleton only. The application now has DTOs, source-client interfaces, a source-client factory, placeholder clients, and an observation import service structure that future PRs can extend without changing dashboard, scoring, journal, or trading behavior.
 
-- Real FRED, BLS, EIA, and Treasury Fiscal Data API clients will be implemented later; the current clients intentionally throw clear `NotImplementedException` messages.
-- No external API calls are made by this version, and no API keys or secrets are introduced.
-- Future import attempts will be audited through `DataImportRuns`, with start/finish timestamps, status, row counts, notes, and errors.
-- Future observations will be normalized into `IndicatorObservations` while preserving existing data and linking imported rows back to their `DataImportRun`.
-- This skeleton does not import historical data and does not insert or update observations.
+- The FRED client can call `/series/observations` for existing FRED mappings when `Fred:ApiKey` is configured; BLS, EIA, and Treasury Fiscal Data clients intentionally remain placeholders.
+- No API keys or secrets are introduced.
+- Import attempts are audited through `DataImportRuns`, with start/finish timestamps, status, row counts, notes, and errors.
+- Fetched observations will be normalized into `IndicatorObservations` in a future PR while preserving existing data and linking imported rows back to their `DataImportRun`.
+- This version can fetch FRED rows for review, but it does not insert or update observations.
 
 ## Scoring approach
 
