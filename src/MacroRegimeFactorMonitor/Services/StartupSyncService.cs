@@ -63,10 +63,11 @@ public sealed class StartupSyncService(
     private void LogSeedSummary(DatabaseSeedResult seedResult)
     {
         logger.LogInformation(
-            "Startup sync completed. DataSources={SeededDataSources}, MacroFactors={SeededMacroFactors}, Indicators={SeededIndicators}, Observations={SeededObservations}, FactorScores={SeededFactorScores}, WeeklyReviews={SeededWeeklyReviews}, TradeIdeas={SeededTradeIdeas}.",
+            "Startup sync completed. DataSources={SeededDataSources}, MacroFactors={SeededMacroFactors}, Indicators={SeededIndicators}, ExternalSeries={SeededExternalSeries}, Observations={SeededObservations}, FactorScores={SeededFactorScores}, WeeklyReviews={SeededWeeklyReviews}, TradeIdeas={SeededTradeIdeas}.",
             seedResult.SeededDataSources,
             seedResult.SeededMacroFactors,
             seedResult.SeededIndicators,
+            seedResult.SeededExternalSeries,
             seedResult.SeededObservations,
             seedResult.SeededFactorScores,
             seedResult.SeededWeeklyReviews,

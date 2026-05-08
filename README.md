@@ -109,6 +109,7 @@ Startup synchronization is designed to be safe to run repeatedly against the sam
 - Schema migrations and lightweight startup schema upgrades are applied idempotently before seeding.
 - The data source registry is additive only: startup inserts missing official/public source definitions by `Name` and does not update, disable, delete, or overwrite existing `DataSources` rows.
 - Initial sample macro seed data is inserted only when the database has no `MacroFactors` rows. If any macro factors already exist, startup skips sample `MacroFactors`, `Indicators`, `IndicatorObservations`, `FactorScores`, `WeeklyReviews`, and `TradeIdeas`.
+- The initial FRED external series mappings are additive only: startup inserts missing approved mappings by data source, series id, and indicator id, and does not update, disable, delete, or overwrite existing `ExternalSeries` rows.
 - Startup never overwrites imported observations, edited factor definitions, user-created journal entries, or custom/disabled source rows.
 - Each startup writes one `StartupSyncRuns` audit row with the applied migration list, seeding counts, completion status, message, and any error message captured before the failure is rethrown.
 
@@ -122,6 +123,18 @@ Historical macro data ingestion is intended to be source-driven rather than copy
 - `IndicatorObservations` stores normalized observations used by the app and now includes nullable source/import tracking fields for external series, import runs, source names, release dates, vintage dates, and timestamps.
 
 Future PRs will add importer clients for official/public APIs, including the FRED observations API, BLS public timeseries API, EIA API v2, and Treasury Fiscal Data REST API. This PR does not implement live API fetching, does not import historical datasets, and does not add API keys.
+
+## Initial FRED series mappings
+
+v0.7.0 seeds only the first reviewed FRED `ExternalSeries` mappings for current macro indicators. These mappings prepare the database for future import work, but they do not implement the FRED API client, make live API calls, fetch observations, import history, or change dashboard/scoring behavior.
+
+| Indicator | FRED series | Endpoint | Frequency | Units | Transform |
+| --- | --- | --- | --- | --- | --- |
+| Core CPI Trend | `CPILFESL` | `/series/observations` | Monthly | PercentChangeFromYearAgo | `pc1` |
+| Market Complacency / VIX Index | `VIXCLS` | `/series/observations` | Daily | Level | `lin` |
+| Fiscal/Treasury Stress / 10Y Treasury proxy | `DGS10` | `/series/observations` | Daily | Level | `lin` |
+
+Other indicators intentionally remain unmapped until their source and series choices are reviewed. In particular, this version does not add FRED mappings for Trimmed Mean CPI, WTI Crude Oil, or ISM Manufacturing PMI.
 
 ## Import architecture
 
