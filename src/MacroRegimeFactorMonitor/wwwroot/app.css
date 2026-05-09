@@ -334,3 +334,8 @@ button:disabled {
     background: #f1f5f9;
     color: #475569;
 }
+
+.pill-error {
+    background: #fee2e2;
+    color: #991b1b;
+}

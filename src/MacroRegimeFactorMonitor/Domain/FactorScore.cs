@@ -13,6 +13,15 @@ public sealed class FactorScore
     public string DataMode { get; set; } = "Sample";
     public string? ScoringModelVersion { get; set; } = "sample-v0";
     public int SourceObservationCount { get; set; }
+    public DateOnly? SourceObservationDate { get; set; }
+    public DateOnly? PreviousObservationDate { get; set; }
+    public decimal? SourceObservationValue { get; set; }
+    public decimal? PreviousObservationValue { get; set; }
+    public decimal? ObservationChange { get; set; }
+    public decimal? ObservationChangePercent { get; set; }
+    public int? DaysSinceSourceObservation { get; set; }
+    public string? DataQualityStatus { get; set; }
+    public string? DataQualityNotes { get; set; }
     public DateTime? CalculatedAtUtc { get; set; }
     public string? CalculationNotes { get; set; }
 }

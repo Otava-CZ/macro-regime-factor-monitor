@@ -66,6 +66,7 @@ else
 
     <section class="card">
         <h2>Factor Scores</h2>
+        <div class="table-scroll">
         <table>
             <thead>
                 <tr>
@@ -75,6 +76,9 @@ else
                     <th class="number">Weighted</th>
                     <th class="number">Pressure contribution</th>
                     <th>Impact</th>
+                    <th>DataQualityStatus</th>
+                    <th>SourceObservationDate</th>
+                    <th class="number">DaysSinceSourceObservation</th>
                     <th>Interpretation note</th>
                     <th>Notes</th>
                 </tr>
@@ -91,12 +95,16 @@ else
                         <td class="number">@score.WeightedScore</td>
                         <td class="number">@pressureContribution</td>
                         <td><span class="pill">@FactorScoreCalculator.ClassifyPressureImpact(pressureContribution, score.MacroFactor?.Name)</span></td>
+                        <td><span class="pill @DataQualityStatusCss(score.DataQualityStatus)">@FormatNullableText(score.DataQualityStatus)</span></td>
+                        <td>@FormatNullableDate(score.SourceObservationDate)</td>
+                        <td class="number">@FormatNullableInt(score.DaysSinceSourceObservation)</td>
                         <td>@FactorScoreCalculator.ExplainPressureImpact(pressureContribution, score.MacroFactor?.Name)</td>
                         <td>@score.Notes</td>
                     </tr>
                 }
             </tbody>
         </table>
+        </div>
     </section>
 
     <section class="card">
@@ -166,4 +174,19 @@ else
     {
         snapshot = await ScoringService.GetLatestSnapshotAsync();
     }
+
+    private static string FormatNullableDate(DateOnly? date) => date?.ToString("yyyy-MM-dd") ?? "—";
+
+    private static string FormatNullableInt(int? value) => value?.ToString() ?? "—";
+
+    private static string FormatNullableText(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value!;
+
+    private static string DataQualityStatusCss(string? status) => status switch
+    {
+        "Fresh" => "pill-success",
+        "Stale" => "pill-warning",
+        "Missing" => "pill-error",
+        "Placeholder" => "pill-muted",
+        _ => "pill-muted"
+    };
 }

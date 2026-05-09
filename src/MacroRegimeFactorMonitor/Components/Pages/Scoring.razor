@@ -8,7 +8,7 @@
 
 <section class="card">
     <h2>Manual imported observation recalculation</h2>
-    <p class="section-note">The v0.8.0 model is placeholder logic. It maps only CPILFESL, DGS10, and VIXCLS; unmapped factors receive explicit neutral placeholders.</p>
+    <p class="section-note">The v0.8.1 workflow keeps the simple v0.8.0 placeholder thresholds, adds observation diagnostics, and maps only CPILFESL, DGS10, and VIXCLS; unmapped factors receive explicit neutral placeholders.</p>
 
     <EditForm Model="request" OnValidSubmit="RecalculateScoresAsync">
         <div class="form-grid">
@@ -80,6 +80,14 @@
                         <th class="number">WeightedScore</th>
                         <th>RegimeImpact</th>
                         <th class="number">SourceObservationCount</th>
+                        <th>SourceObservationDate</th>
+                        <th class="number">SourceObservationValue</th>
+                        <th>PreviousObservationDate</th>
+                        <th class="number">PreviousObservationValue</th>
+                        <th class="number">ObservationChange</th>
+                        <th class="number">DaysSinceSourceObservation</th>
+                        <th>DataQualityStatus</th>
+                        <th>DataQualityNotes</th>
                         <th>CalculatedAtUtc</th>
                         <th>Notes</th>
                     </tr>
@@ -94,6 +102,14 @@
                             <td class="number">@score.WeightedScore</td>
                             <td><span class="pill">@score.RegimeImpact</span></td>
                             <td class="number">@score.SourceObservationCount</td>
+                            <td>@FormatNullableDate(score.SourceObservationDate)</td>
+                            <td class="number">@FormatNullableDecimal(score.SourceObservationValue)</td>
+                            <td>@FormatNullableDate(score.PreviousObservationDate)</td>
+                            <td class="number">@FormatNullableDecimal(score.PreviousObservationValue)</td>
+                            <td class="number">@FormatSignedNullableDecimal(score.ObservationChange)</td>
+                            <td class="number">@FormatNullableInt(score.DaysSinceSourceObservation)</td>
+                            <td><span class="pill @DataQualityStatusCss(score.DataQualityStatus)">@FormatNullableText(score.DataQualityStatus)</span></td>
+                            <td>@FormatNullableText(score.DataQualityNotes)</td>
                             <td>@FormatDateTime(score.CalculatedAtUtc)</td>
                             <td>@(score.CalculationNotes ?? score.Notes)</td>
                         </tr>
@@ -139,8 +155,27 @@
 
     private static string FormatDate(DateOnly date) => date.ToString("yyyy-MM-dd");
 
+    private static string FormatNullableDate(DateOnly? date) => date?.ToString("yyyy-MM-dd") ?? "—";
+
+    private static string FormatNullableDecimal(decimal? value) => value?.ToString("0.##") ?? "—";
+
+    private static string FormatSignedNullableDecimal(decimal? value) => value?.ToString("+0.##;-0.##;0") ?? "—";
+
+    private static string FormatNullableInt(int? value) => value?.ToString() ?? "—";
+
+    private static string FormatNullableText(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value!;
+
     private static string FormatDateTime(DateTime? dateTime) =>
         dateTime?.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? "—";
+
+    private static string DataQualityStatusCss(string? status) => status switch
+    {
+        "Fresh" => "pill-success",
+        "Stale" => "pill-warning",
+        "Missing" => "pill-error",
+        "Placeholder" => "pill-muted",
+        _ => "pill-muted"
+    };
 
     private sealed class ScoringRequest
     {

@@ -194,6 +194,27 @@ A measurable factor score is therefore the data-backed layer of the dashboard: o
 
 Dashboard factor impact wording uses pressure-aware labels: `Pressure rising`, `Mild pressure`, `Relief`, `Balanced`, and the Market Complacency-specific `Complacency pressure`.
 
+
+## Scoring diagnostics
+
+v0.8.1 makes manual `ImportedManual` scores explainable without changing the simple v0.8.0 threshold model. Each recalculated `FactorScore` can now record the source observation date/value, the previous observation date/value when available, the absolute and percent observation change, days since the source observation, and a display-only data quality status. Existing `Sample` scores remain valid; their diagnostic fields may be null.
+
+Freshness is informational only and does not block scoring, imports, dashboard display, or manual review:
+
+| Series frequency | Fresh when latest observation is | Stale when latest observation is |
+| --- | ---: | ---: |
+| Daily | `<= 5` calendar days old | `> 5` calendar days old |
+| Monthly | `<= 45` calendar days old | `> 45` calendar days old |
+| Unknown | `<= 14` calendar days old | `> 14` calendar days old |
+
+Diagnostic statuses are:
+
+- `Fresh` or `Stale` for mapped factors with a usable imported observation on or before `ScoreDate`.
+- `Missing` for mapped factors when no imported observation exists on or before `ScoreDate`; the manual raw score remains neutral (`0`).
+- `Placeholder` for unmapped factors such as Inflation Breadth, Energy Shock, and Growth Stress until an imported observation mapping is added.
+
+Diagnostics are populated only when a human runs the manual recalculation from `/scoring`. They do not run automatically on startup, on a schedule, or after imports, and they do not add broker integration, automatic trading, `TradeIdea` automation, or new external data sources. The scoring model remains intentionally placeholder/simple; freshness context is transparency, not a production macro model.
+
 ## Macro interpretation approach
 
 The dashboard keeps the six measurable factor scores visible and then derives interpretation readings from them:
