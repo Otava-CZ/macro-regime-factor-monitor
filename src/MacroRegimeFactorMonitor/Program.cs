@@ -34,6 +34,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
         options.UseConfiguredDatabase(builder.Configuration));
     builder.Services.AddScoped<FactorScoringService>();
     builder.Services.AddScoped<ImportedObservationScoringService>();
+    builder.Services.AddScoped<OperationalWorkflowService>();
     builder.Services.AddScoped<JournalService>();
     builder.Services.AddScoped<StartupSyncService>();
     builder.Services.AddHttpClient<IDataSourceClient, FredDataSourceClient>();
