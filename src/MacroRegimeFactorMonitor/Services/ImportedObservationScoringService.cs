@@ -182,7 +182,7 @@ public sealed class ImportedObservationScoringService(IDbContextFactory<MacroReg
 
         if (observation is null)
         {
-            const string dataQualityNotes = "No imported observation available on or before ScoreDate.";
+            const string missingDataQualityNotes = "No imported observation available on or before ScoreDate.";
             return new ImportedObservationScoreCalculation
             {
                 RawScore = 0m,
@@ -190,7 +190,7 @@ public sealed class ImportedObservationScoringService(IDbContextFactory<MacroReg
                 CalculationNotes = $"No imported {rule.ExternalSeriesId} observation available on or before ScoreDate {scoreDate:yyyy-MM-dd}. RawScore = 0 because no imported observation was available.",
                 SourceObservationCount = 0,
                 DataQualityStatus = "Missing",
-                DataQualityNotes = dataQualityNotes
+                DataQualityNotes = missingDataQualityNotes
             };
         }
 
