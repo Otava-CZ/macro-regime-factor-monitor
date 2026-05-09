@@ -24,8 +24,14 @@ public sealed class FactorScoringService(IDbContextFactory<MacroRegimeDbContext>
         var preferredDataMode = latestDateScores.Any(score => score.DataMode == ImportedObservationScoringService.ImportedManualDataMode)
             ? ImportedObservationScoringService.ImportedManualDataMode
             : "Sample";
+        var preferredVersion = preferredDataMode == ImportedObservationScoringService.ImportedManualDataMode
+            ? ImportedObservationScoringService.SelectPreferredImportedManualVersion(latestDateScores
+                .Where(score => score.DataMode == preferredDataMode)
+                .Select(score => score.ScoringModelVersion))
+            : null;
         var scores = latestDateScores
-            .Where(score => score.DataMode == preferredDataMode)
+            .Where(score => score.DataMode == preferredDataMode
+                && (preferredVersion is null || score.ScoringModelVersion == preferredVersion))
             .OrderBy(score => score.MacroFactor!.Name)
             .ToList();
         var dataModes = scores

@@ -20,7 +20,7 @@ partial class MacroRegimeDbContextModelSnapshot : ModelSnapshot
 
         NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-        AddFactorScoreDiagnostics.BuildModel(modelBuilder);
+        AddFactorScoreWindowDiagnostics.BuildModel(modelBuilder);
 #pragma warning restore 612, 618
     }
 }

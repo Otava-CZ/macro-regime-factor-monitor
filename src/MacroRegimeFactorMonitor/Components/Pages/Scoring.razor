@@ -8,7 +8,7 @@
 
 <section class="card">
     <h2>Manual imported observation recalculation</h2>
-    <p class="section-note">The v0.8.1 workflow keeps the simple v0.8.0 placeholder thresholds, adds observation diagnostics, and maps only CPILFESL, DGS10, and VIXCLS; unmapped factors receive explicit neutral placeholders.</p>
+    <p class="section-note">The v0.8.2 workflow keeps manual ImportedManual scoring, adds simple lookback-window diagnostics, and maps only CPILFESL, DGS10, and VIXCLS; unmapped factors receive explicit neutral placeholders.</p>
 
     <EditForm Model="request" OnValidSubmit="RecalculateScoresAsync">
         <div class="form-grid">
@@ -88,6 +88,15 @@
                         <th class="number">DaysSinceSourceObservation</th>
                         <th>DataQualityStatus</th>
                         <th>DataQualityNotes</th>
+                        <th class="number">WindowObservationCount</th>
+                        <th>WindowStartDate</th>
+                        <th>WindowEndDate</th>
+                        <th class="number">WindowChange</th>
+                        <th class="number">WindowChangePercent</th>
+                        <th class="number">WindowSlope</th>
+                        <th class="number">WindowAcceleration</th>
+                        <th>ScoringConfidence</th>
+                        <th>ScoringConfidenceNotes</th>
                         <th>CalculatedAtUtc</th>
                         <th>Notes</th>
                     </tr>
@@ -110,6 +119,15 @@
                             <td class="number">@FormatNullableInt(score.DaysSinceSourceObservation)</td>
                             <td><span class="pill @DataQualityStatusCss(score.DataQualityStatus)">@FormatNullableText(score.DataQualityStatus)</span></td>
                             <td>@FormatNullableText(score.DataQualityNotes)</td>
+                            <td class="number">@FormatNullableInt(score.WindowObservationCount)</td>
+                            <td>@FormatNullableDate(score.WindowStartDate)</td>
+                            <td>@FormatNullableDate(score.WindowEndDate)</td>
+                            <td class="number">@FormatSignedNullableDecimal(score.WindowChange)</td>
+                            <td class="number">@FormatSignedNullableDecimal(score.WindowChangePercent)</td>
+                            <td class="number">@FormatSignedNullableDecimal(score.WindowSlope)</td>
+                            <td class="number">@FormatSignedNullableDecimal(score.WindowAcceleration)</td>
+                            <td><span class="pill @ScoringConfidenceCss(score.ScoringConfidence)">@FormatNullableText(score.ScoringConfidence)</span></td>
+                            <td>@FormatNullableText(score.ScoringConfidenceNotes)</td>
                             <td>@FormatDateTime(score.CalculatedAtUtc)</td>
                             <td>@(score.CalculationNotes ?? score.Notes)</td>
                         </tr>
@@ -172,6 +190,16 @@
     {
         "Fresh" => "pill-success",
         "Stale" => "pill-warning",
+        "Missing" => "pill-error",
+        "Placeholder" => "pill-muted",
+        _ => "pill-muted"
+    };
+
+    private static string ScoringConfidenceCss(string? confidence) => confidence switch
+    {
+        "High" => "pill-success",
+        "Medium" => "pill-warning",
+        "Low" => "pill-error",
         "Missing" => "pill-error",
         "Placeholder" => "pill-muted",
         _ => "pill-muted"

@@ -197,7 +197,7 @@ Dashboard factor impact wording uses pressure-aware labels: `Pressure rising`, `
 
 ## Scoring diagnostics
 
-v0.8.1 makes manual `ImportedManual` scores explainable without changing the simple v0.8.0 threshold model. Each recalculated `FactorScore` can now record the source observation date/value, the previous observation date/value when available, the absolute and percent observation change, days since the source observation, and a display-only data quality status. Existing `Sample` scores remain valid; their diagnostic fields may be null.
+v0.8.2 keeps the manual `ImportedManual` scoring workflow but makes it less toy-like by recording both point-in-time diagnostics and simple observation-window context. Each recalculated `FactorScore` can record the source observation date/value, previous observation date/value, absolute and percent one-step change, days since the source observation, data quality status, window counts/dates/min/max/average/first/last values, window change and percent change, simple window slope, approximate window acceleration, scoring confidence, and scoring confidence notes. Existing `Sample` scores remain valid; their diagnostic fields may be null.
 
 Freshness is informational only and does not block scoring, imports, dashboard display, or manual review:
 
@@ -213,7 +213,26 @@ Diagnostic statuses are:
 - `Missing` for mapped factors when no imported observation exists on or before `ScoreDate`; the manual raw score remains neutral (`0`).
 - `Placeholder` for unmapped factors such as Inflation Breadth, Energy Shock, and Growth Stress until an imported observation mapping is added.
 
-Diagnostics are populated only when a human runs the manual recalculation from `/scoring`. They do not run automatically on startup, on a schedule, or after imports, and they do not add broker integration, automatic trading, `TradeIdea` automation, or new external data sources. The scoring model remains intentionally placeholder/simple; freshness context is transparency, not a production macro model.
+Scoring confidence is informational and based on data freshness plus lookback-window sample size:
+
+- `High` for fresh mapped data with at least 8 monthly observations or 30 daily observations in the lookback window.
+- `Medium` for fresh or stale mapped data with at least 3 observations in the lookback window.
+- `Low` for mapped data with thinner lookback context.
+- `Missing` when mapped data has no imported observation on or before `ScoreDate`.
+- `Placeholder` when no imported observation mapping exists yet.
+
+Diagnostics are populated only when a human runs the manual recalculation from `/scoring`. They do not run automatically on startup, on a schedule, or after imports, and they do not add broker integration, automatic trading, `TradeIdea` automation, or new external data sources. The scoring model remains intentionally placeholder/simple; freshness, slope, acceleration, and confidence context are transparency aids, not a production macro model.
+
+## Window-based ImportedManual scoring
+
+v0.8.2 writes `DataMode = ImportedManual` scores with `ScoringModelVersion = imported-manual-v0.8.2`. It still uses placeholder/simple rules, but the mapped factors now use observation windows as diagnostics and as first-pass scoring adjustments:
+
+- **Inflation Pressure / `CPILFESL`** uses the latest core CPI YoY value for the base score and the 12-month window change for a small adjustment. A 12-month increase of at least `+0.75` adds `+0.5`; a decrease of at least `-0.75` subtracts `0.5`; final raw scores are clamped to `[-2, +2]`.
+- **Fiscal/Treasury Stress / `DGS10`** uses the latest 10-year Treasury yield level for the base score and the 60-calendar-day yield change for a small adjustment. A 60-day increase of at least `+0.50` adds `+0.5`; a decrease of at least `-0.50` subtracts `0.5`; final raw scores are clamped to `[-2, +2]`. `DGS10` remains a rough Treasury-rate proxy, not true fiscal stress or term premium.
+- **Market Complacency / `VIXCLS`** uses the latest VIX level for the base score and the 60-calendar-day VIX trend for a small adjustment. A VIX drop of at least `-5.0` adds `+0.5` because sharply falling volatility can increase complacency pressure; a VIX rise of at least `+5.0` subtracts `0.5` because visible fear reduces complacency pressure; final raw scores are clamped to `[-2, +2]`. Low VIX increases Market Complacency pressure; high VIX reduces complacency pressure.
+- Unknown-frequency mappings, if added later, use a 90-calendar-day lookback window by default.
+
+Window fields are part of the persisted score row so the `/scoring` table and dashboard can explain what changed. Confidence is also persisted, but it is informational; it does not suppress a score or trigger any automation. Manual recalculation for the same `ScoreDate`, `DataMode`, factor, and `ScoringModelVersion` updates the existing six rows, while the v0.8.2 version key leaves older v0.8.0/v0.8.1 rows intact. The dashboard prefers the latest `ImportedManual` model version for a selected/latest date when multiple imported-manual versions exist.
 
 ## Macro interpretation approach
 
@@ -248,7 +267,7 @@ The repository includes one GitHub Actions workflow that restores and builds the
 
 ## Manual imported-data scoring
 
-v0.8.0 adds the first manual bridge from imported FRED observations to `FactorScores`. After importing observations, use the **Scoring** admin page to run **Recalculate current scores from imported observations** for a selected `ScoreDate` (default: today in UTC). The recalculation uses the latest imported observation on or before that score date and writes `DataMode = ImportedManual` scores with `ScoringModelVersion = imported-manual-v0.8.0`.
+v0.8.0 added the first manual bridge from imported FRED observations to `FactorScores`; v0.8.2 keeps that bridge manual-only and writes the current version as `ScoringModelVersion = imported-manual-v0.8.2`. After importing observations, use the **Scoring** admin page to run **Recalculate current scores from imported observations** for a selected `ScoreDate` (default: today in UTC). The recalculation uses the latest imported observation on or before that score date plus the configured lookback window for mapped factors.
 
 Important caveats:
 
@@ -258,5 +277,5 @@ Important caveats:
 - Inflation Breadth, Energy Shock, and Growth Stress are not mapped yet, so manual scoring creates explicit neutral placeholders with `SourceObservationCount = 0`.
 - Scoring does not run automatically on startup, on a schedule, or after imports. Imports never automatically recalculate scores.
 - No broker integration, automatic trading, `TradeIdea` automation, or hidden background scoring jobs are included.
-- The dashboard labels whether it is displaying `Sample`, `ImportedManual`, or mixed data modes and prefers `ImportedManual` scores when they exist for the latest displayed score date.
+- The dashboard labels whether it is displaying `Sample`, `ImportedManual`, or mixed data modes and prefers `ImportedManual` scores when they exist for the latest displayed score date. When multiple imported-manual model versions exist for that date, it prefers `imported-manual-v0.8.2` over older imported-manual rows.
 - Scheduled jobs remain deferred.
