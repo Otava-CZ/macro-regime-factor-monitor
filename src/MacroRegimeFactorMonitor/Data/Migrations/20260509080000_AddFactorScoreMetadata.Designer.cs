@@ -4,6 +4,7 @@ using MacroRegimeFactorMonitor.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
@@ -21,7 +22,7 @@ partial class AddFactorScoreMetadata
             .HasAnnotation("ProductVersion", "8.0.11")
             .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-        Npgsql.EntityFrameworkCore.PostgreSQL.NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+        NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
         BuildModel(modelBuilder);
 #pragma warning restore 612, 618
