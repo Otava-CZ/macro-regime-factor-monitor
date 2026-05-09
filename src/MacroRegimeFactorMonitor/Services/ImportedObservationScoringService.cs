@@ -77,6 +77,15 @@ public sealed class ImportedObservationScoringService(IDbContextFactory<MacroReg
                         DataMode = ImportedManualDataMode,
                         ScoringModelVersion = ImportedObservationScoringService.ScoringModelVersion,
                         SourceObservationCount = calculation.SourceObservationCount,
+                        SourceObservationDate = calculation.SourceObservationDate,
+                        PreviousObservationDate = calculation.PreviousObservationDate,
+                        SourceObservationValue = calculation.SourceObservationValue,
+                        PreviousObservationValue = calculation.PreviousObservationValue,
+                        ObservationChange = calculation.ObservationChange,
+                        ObservationChangePercent = calculation.ObservationChangePercent,
+                        DaysSinceSourceObservation = calculation.DaysSinceSourceObservation,
+                        DataQualityStatus = calculation.DataQualityStatus,
+                        DataQualityNotes = calculation.DataQualityNotes,
                         CalculatedAtUtc = calculatedAtUtc,
                         CalculationNotes = calculation.CalculationNotes
                     });
@@ -89,6 +98,15 @@ public sealed class ImportedObservationScoringService(IDbContextFactory<MacroReg
                     existingScore.RegimeImpact = calculation.RegimeImpact;
                     existingScore.Notes = calculation.Notes;
                     existingScore.SourceObservationCount = calculation.SourceObservationCount;
+                    existingScore.SourceObservationDate = calculation.SourceObservationDate;
+                    existingScore.PreviousObservationDate = calculation.PreviousObservationDate;
+                    existingScore.SourceObservationValue = calculation.SourceObservationValue;
+                    existingScore.PreviousObservationValue = calculation.PreviousObservationValue;
+                    existingScore.ObservationChange = calculation.ObservationChange;
+                    existingScore.ObservationChangePercent = calculation.ObservationChangePercent;
+                    existingScore.DaysSinceSourceObservation = calculation.DaysSinceSourceObservation;
+                    existingScore.DataQualityStatus = calculation.DataQualityStatus;
+                    existingScore.DataQualityNotes = calculation.DataQualityNotes;
                     existingScore.CalculatedAtUtc = calculatedAtUtc;
                     existingScore.CalculationNotes = calculation.CalculationNotes;
                     result.ScoresUpdated++;
@@ -100,6 +118,14 @@ public sealed class ImportedObservationScoringService(IDbContextFactory<MacroReg
                     calculation.WeightedScore,
                     calculation.RegimeImpact,
                     calculation.SourceObservationCount,
+                    calculation.SourceObservationDate,
+                    calculation.SourceObservationValue,
+                    calculation.PreviousObservationDate,
+                    calculation.PreviousObservationValue,
+                    calculation.ObservationChange,
+                    calculation.DaysSinceSourceObservation,
+                    calculation.DataQualityStatus,
+                    calculation.DataQualityNotes,
                     calculation.CalculationNotes));
             }
             catch (Exception exception)
@@ -156,23 +182,69 @@ public sealed class ImportedObservationScoringService(IDbContextFactory<MacroReg
 
         if (observation is null)
         {
+            const string dataQualityNotes = "No imported observation available on or before ScoreDate.";
             return new ImportedObservationScoreCalculation
             {
                 RawScore = 0m,
-                Notes = $"No imported {rule.ExternalSeriesId} observation available on or before {scoreDate:yyyy-MM-dd}; neutral placeholder score.",
-                CalculationNotes = $"No imported {rule.ExternalSeriesId} observation available on or before {scoreDate:yyyy-MM-dd}; neutral placeholder score.",
-                SourceObservationCount = 0
+                Notes = $"No imported {rule.ExternalSeriesId} observation available on or before {scoreDate:yyyy-MM-dd}; neutral missing-data score.",
+                CalculationNotes = $"No imported {rule.ExternalSeriesId} observation available on or before ScoreDate {scoreDate:yyyy-MM-dd}. RawScore = 0 because no imported observation was available.",
+                SourceObservationCount = 0,
+                DataQualityStatus = "Missing",
+                DataQualityNotes = dataQualityNotes
             };
         }
 
+        var previousObservation = await db.IndicatorObservations
+            .AsNoTracking()
+            .Include(item => item.ExternalSeries)
+            .Where(item => item.ObservationDate < observation.ObservationDate
+                && item.ExternalSeries != null
+                && item.ExternalSeries.DataSource != null
+                && item.ExternalSeries.DataSource.Name == "FRED"
+                && item.ExternalSeries.ExternalSeriesId == rule.ExternalSeriesId)
+            .OrderByDescending(item => item.ObservationDate)
+            .ThenByDescending(item => item.UpdatedAtUtc ?? item.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var daysSinceSourceObservation = scoreDate.DayNumber - observation.ObservationDate.DayNumber;
+        var dataQualityStatus = DetermineDataQualityStatus(observation.ExternalSeries?.Frequency, daysSinceSourceObservation);
+        var dataQualityNotes = dataQualityStatus == "Stale"
+            ? $"Source data is stale: latest {rule.ExternalSeriesId} observation is {daysSinceSourceObservation} days before ScoreDate."
+            : $"Source data is fresh: latest {rule.ExternalSeriesId} observation is {daysSinceSourceObservation} days before ScoreDate.";
+        var observationChange = previousObservation is null
+            ? (decimal?)null
+            : observation.Value - previousObservation.Value;
+        var observationChangePercent = previousObservation is not null && previousObservation.Value != 0m && observationChange is not null
+            ? observationChange.Value / Math.Abs(previousObservation.Value) * 100m
+            : (decimal?)null;
         var rawScore = rule.Score(observation.Value);
-        var notes = BuildMappedNotes(rule.ExternalSeriesId, observation.ObservationDate, observation.Value, factor.Name);
+        var notes = BuildMappedNotes(
+            rule.ExternalSeriesId,
+            observation.ObservationDate,
+            observation.Value,
+            previousObservation?.ObservationDate,
+            previousObservation?.Value,
+            observationChange,
+            daysSinceSourceObservation,
+            dataQualityStatus,
+            rawScore,
+            factor.Name);
+
         return new ImportedObservationScoreCalculation
         {
             RawScore = rawScore,
             Notes = notes,
             CalculationNotes = notes,
-            SourceObservationCount = 1
+            SourceObservationCount = 1,
+            SourceObservationDate = observation.ObservationDate,
+            PreviousObservationDate = previousObservation?.ObservationDate,
+            SourceObservationValue = observation.Value,
+            PreviousObservationValue = previousObservation?.Value,
+            ObservationChange = observationChange,
+            ObservationChangePercent = observationChangePercent,
+            DaysSinceSourceObservation = daysSinceSourceObservation,
+            DataQualityStatus = dataQualityStatus,
+            DataQualityNotes = dataQualityNotes
         };
     }
 
@@ -186,21 +258,60 @@ public sealed class ImportedObservationScoringService(IDbContextFactory<MacroReg
             RegimeImpact = "Neutral / unavailable imported data",
             Notes = notes,
             CalculationNotes = notes,
-            SourceObservationCount = 0
+            SourceObservationCount = 0,
+            DataQualityStatus = "Placeholder",
+            DataQualityNotes = "No imported observation mapping available yet."
         };
     }
 
-    private static string BuildMappedNotes(string seriesId, DateOnly observationDate, decimal value, string factorName)
+    private static string BuildMappedNotes(
+        string seriesId,
+        DateOnly observationDate,
+        decimal value,
+        DateOnly? previousObservationDate,
+        decimal? previousValue,
+        decimal? observationChange,
+        int daysSinceSourceObservation,
+        string dataQualityStatus,
+        decimal rawScore,
+        string factorName)
     {
-        var formattedValue = value.ToString("0.##");
+        var unitSuffix = seriesId is "CPILFESL" or "DGS10" ? "%" : string.Empty;
+        var latestText = seriesId == "CPILFESL"
+            ? $"CPILFESL YoY latest observation {observationDate:yyyy-MM-dd} = {FormatObservationValue(value)}{unitSuffix}."
+            : $"{seriesId} latest observation {observationDate:yyyy-MM-dd} = {FormatObservationValue(value)}{unitSuffix}.";
+        var previousText = previousObservationDate is not null && previousValue is not null
+            ? $" Previous {previousObservationDate:yyyy-MM-dd} = {FormatObservationValue(previousValue.Value)}{unitSuffix}."
+            : " Previous observation unavailable.";
+        var changeText = observationChange is not null
+            ? $" Change = {FormatSignedObservationValue(observationChange.Value)}."
+            : " Change unavailable.";
+        var diagnosticsText = $" Data age = {daysSinceSourceObservation} days, status {dataQualityStatus}. RawScore = {FormatSignedObservationValue(rawScore)}.";
+
         return seriesId switch
         {
-            "CPILFESL" => $"CPILFESL YoY latest observation {observationDate:yyyy-MM-dd} = {formattedValue}%.",
-            "DGS10" => $"DGS10 latest observation {observationDate:yyyy-MM-dd} = {formattedValue}%. DGS10 is a rough Treasury-rate proxy, not true fiscal stress or term premium.",
-            "VIXCLS" => $"VIXCLS latest observation {observationDate:yyyy-MM-dd} = {formattedValue}. Low VIX increases Market Complacency pressure; high VIX reduces complacency pressure.",
-            _ => $"{seriesId} latest observation {observationDate:yyyy-MM-dd} = {formattedValue} for {factorName}."
+            "CPILFESL" => $"{latestText}{previousText}{changeText}{diagnosticsText} Rule: <=2.5 negative pressure, 2.5-3.5 balanced, 3.5-4.5 elevated, >4.5 high.",
+            "DGS10" => $"{latestText}{previousText}{changeText}{diagnosticsText} Rule: <3.5 relief, 3.5-4.5 mild stress, 4.5-5 elevated stress, >=5 high stress. DGS10 is a rough Treasury-rate proxy, not true fiscal stress or term premium.",
+            "VIXCLS" => $"{latestText}{previousText}{changeText}{diagnosticsText} Rule: <13 high complacency pressure, 13-16 elevated complacency pressure, 16-22 balanced, 22-30 reduced complacency, >=30 negative complacency score. Low VIX increases Market Complacency pressure; high VIX reduces complacency pressure.",
+            _ => $"{latestText} Factor = {factorName}.{previousText}{changeText}{diagnosticsText} Rule: imported manual placeholder rule for mapped source series."
         };
     }
+
+    private static string DetermineDataQualityStatus(string? frequency, int daysSinceSourceObservation)
+    {
+        var freshThreshold = frequency?.Trim().ToUpperInvariant() switch
+        {
+            "D" or "DAILY" => 5,
+            "M" or "MONTHLY" => 45,
+            _ => 14
+        };
+
+        return daysSinceSourceObservation <= freshThreshold ? "Fresh" : "Stale";
+    }
+
+    private static string FormatObservationValue(decimal value) => value.ToString("0.##");
+
+    private static string FormatSignedObservationValue(decimal value) => value.ToString("+0.##;-0.##;0");
 
     private static decimal ScoreCoreCpi(decimal value) => value switch
     {
@@ -242,6 +353,15 @@ public sealed class ImportedObservationScoringService(IDbContextFactory<MacroReg
         public string Notes { get; set; } = string.Empty;
         public string CalculationNotes { get; set; } = string.Empty;
         public int SourceObservationCount { get; set; }
+        public DateOnly? SourceObservationDate { get; set; }
+        public DateOnly? PreviousObservationDate { get; set; }
+        public decimal? SourceObservationValue { get; set; }
+        public decimal? PreviousObservationValue { get; set; }
+        public decimal? ObservationChange { get; set; }
+        public decimal? ObservationChangePercent { get; set; }
+        public int? DaysSinceSourceObservation { get; set; }
+        public string? DataQualityStatus { get; set; }
+        public string? DataQualityNotes { get; set; }
     }
 }
 
@@ -265,4 +385,12 @@ public sealed record ImportedObservationScoreRow(
     decimal WeightedScore,
     string RegimeImpact,
     int SourceObservationCount,
+    DateOnly? SourceObservationDate,
+    decimal? SourceObservationValue,
+    DateOnly? PreviousObservationDate,
+    decimal? PreviousObservationValue,
+    decimal? ObservationChange,
+    int? DaysSinceSourceObservation,
+    string? DataQualityStatus,
+    string? DataQualityNotes,
     string CalculationNotes);

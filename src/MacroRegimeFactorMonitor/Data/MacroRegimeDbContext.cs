@@ -78,6 +78,15 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
             [nameof(FactorScore.DataMode)] = "TEXT NOT NULL DEFAULT 'Sample'",
             [nameof(FactorScore.ScoringModelVersion)] = "TEXT NULL DEFAULT 'sample-v0'",
             [nameof(FactorScore.SourceObservationCount)] = "INTEGER NOT NULL DEFAULT 0",
+            [nameof(FactorScore.SourceObservationDate)] = "TEXT NULL",
+            [nameof(FactorScore.PreviousObservationDate)] = "TEXT NULL",
+            [nameof(FactorScore.SourceObservationValue)] = "TEXT NULL",
+            [nameof(FactorScore.PreviousObservationValue)] = "TEXT NULL",
+            [nameof(FactorScore.ObservationChange)] = "TEXT NULL",
+            [nameof(FactorScore.ObservationChangePercent)] = "TEXT NULL",
+            [nameof(FactorScore.DaysSinceSourceObservation)] = "INTEGER NULL",
+            [nameof(FactorScore.DataQualityStatus)] = "TEXT NULL",
+            [nameof(FactorScore.DataQualityNotes)] = "TEXT NULL",
             [nameof(FactorScore.CalculatedAtUtc)] = "TEXT NULL",
             [nameof(FactorScore.CalculationNotes)] = "TEXT NULL"
         };
@@ -294,6 +303,11 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
             entity.Property(score => score.RegimeImpact).HasMaxLength(120).IsRequired();
             entity.Property(score => score.DataMode).HasMaxLength(40).HasDefaultValue("Sample").IsRequired();
             entity.Property(score => score.ScoringModelVersion).HasMaxLength(80).HasDefaultValue("sample-v0");
+            entity.Property(score => score.SourceObservationValue).HasPrecision(18, 6);
+            entity.Property(score => score.PreviousObservationValue).HasPrecision(18, 6);
+            entity.Property(score => score.ObservationChange).HasPrecision(18, 6);
+            entity.Property(score => score.ObservationChangePercent).HasPrecision(18, 6);
+            entity.Property(score => score.DataQualityStatus).HasMaxLength(40);
             entity.HasIndex(score => new
             {
                 score.MacroFactorId,
