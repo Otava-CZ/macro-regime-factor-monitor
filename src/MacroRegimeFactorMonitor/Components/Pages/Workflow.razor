@@ -1,0 +1,420 @@
+@page "/workflow"
+@inject OperationalWorkflowService WorkflowService
+
+<PageTitle>Operational Workflow</PageTitle>
+
+<h1>Operational Workflow</h1>
+<p class="lede">Run the manual macro-monitor workflow. Nothing runs automatically; each step requires a button click.</p>
+
+<section class="message warning">
+    <strong>Manual controls only.</strong>
+    <div>No automatic refresh is enabled.</div>
+    <div>No automatic scoring is enabled.</div>
+    <div>No trading action is taken by this app.</div>
+</section>
+
+<section class="card">
+    <div class="section-heading">
+        <div>
+            <h2>Workflow status summary</h2>
+            <p class="section-note">Current import freshness, latest manual score set, and score quality counts.</p>
+        </div>
+        <button type="button" disabled="@IsBusy" @onclick="LoadWorkflowDataAsync">Reload status</button>
+    </div>
+
+    @if (status is null)
+    {
+        <p>Loading workflow status...</p>
+    }
+    else
+    {
+        <div class="summary-grid">
+            <div class="metric-card"><span>Latest import run time</span><strong>@FormatDateTime(status.LatestImportRunTimeUtc)</strong></div>
+            <div class="metric-card"><span>Latest successful FRED import time</span><strong>@FormatDateTime(status.LatestSuccessfulFredImportTimeUtc)</strong></div>
+            <div class="metric-card"><span>Active FRED series count</span><strong>@status.ActiveFredSeriesCount</strong></div>
+            <div class="metric-card"><span>Series fresh count</span><strong>@status.SeriesFreshCount</strong></div>
+            <div class="metric-card"><span>Series stale count</span><strong>@status.SeriesStaleCount</strong></div>
+            <div class="metric-card"><span>Series missing count</span><strong>@status.SeriesMissingCount</strong></div>
+            <div class="metric-card"><span>Latest ImportedManual ScoreDate</span><strong>@FormatNullableDate(status.LatestImportedManualScoreDate)</strong></div>
+            <div class="metric-card"><span>Latest ImportedManual ScoringModelVersion</span><strong>@FormatNullableText(status.LatestImportedManualScoringModelVersion)</strong></div>
+            <div class="metric-card"><span>Factor scores count</span><strong>@status.LatestImportedManualFactorScoreCount</strong></div>
+            <div class="metric-card"><span>High confidence count</span><strong>@status.HighConfidenceCount</strong></div>
+            <div class="metric-card"><span>Medium confidence count</span><strong>@status.MediumConfidenceCount</strong></div>
+            <div class="metric-card"><span>Low confidence count</span><strong>@status.LowConfidenceCount</strong></div>
+            <div class="metric-card"><span>Placeholder count</span><strong>@status.PlaceholderCount</strong></div>
+            <div class="metric-card"><span>Missing count</span><strong>@status.MissingCount</strong></div>
+        </div>
+    }
+</section>
+
+<section class="card">
+    <h2>Run full manual workflow</h2>
+    <p class="section-note">Explicitly runs refresh, then scoring for the selected ScoreDate, then reloads this page status. This is not scheduled.</p>
+    <div class="form-grid">
+        <label>
+            ScoreDate
+            <InputDate @bind-Value="request.ScoreDate" disabled="@IsBusy" />
+        </label>
+    </div>
+    <button type="button" disabled="@IsBusy" @onclick="RunFullManualWorkflowAsync">
+        @(isFullWorkflowRunning ? "Running full manual workflow..." : "Run full manual workflow")
+    </button>
+</section>
+
+@if (fullWorkflowResult is not null)
+{
+    <section class="card result-card">
+        <h2>Full manual workflow result</h2>
+        <div class="summary-grid">
+            <div class="metric-card"><span>Refresh status</span><strong>@fullWorkflowResult.RefreshResult?.Status</strong></div>
+            <div class="metric-card"><span>Series attempted</span><strong>@fullWorkflowResult.RefreshResult?.SeriesAttempted</strong></div>
+            <div class="metric-card"><span>Series failed</span><strong>@fullWorkflowResult.RefreshResult?.SeriesFailed</strong></div>
+            <div class="metric-card"><span>ScoreDate</span><strong>@FormatNullableDate(fullWorkflowResult.ScoringResult?.ScoreDate)</strong></div>
+            <div class="metric-card"><span>Scores inserted</span><strong>@fullWorkflowResult.ScoringResult?.ScoresInserted</strong></div>
+            <div class="metric-card"><span>Scores updated</span><strong>@fullWorkflowResult.ScoringResult?.ScoresUpdated</strong></div>
+        </div>
+
+        @if (fullWorkflowResult.Warnings.Count > 0)
+        {
+            <div class="message warning">
+                <strong>Warnings</strong>
+                <ul>
+                    @foreach (var warning in fullWorkflowResult.Warnings)
+                    {
+                        <li>@warning</li>
+                    }
+                </ul>
+            </div>
+        }
+    </section>
+}
+
+<section class="card">
+    <h2>Step 1 — Refresh active FRED data</h2>
+    <p class="section-note">Uses the same manual refresh-all service as the Data Imports page. Individual series failures are reported without stopping later series.</p>
+    <button type="button" disabled="@IsBusy" @onclick="RefreshAllFredAsync">
+        @(isRefreshRunning ? "Refreshing all active FRED series..." : "Refresh all active FRED series")
+    </button>
+
+    @if (refreshResult is not null)
+    {
+        <div class="summary-grid workflow-result-grid">
+            <div class="metric-card"><span>Series attempted</span><strong>@refreshResult.SeriesAttempted</strong></div>
+            <div class="metric-card"><span>Completed</span><strong>@refreshResult.SeriesCompleted</strong></div>
+            <div class="metric-card"><span>Failed</span><strong>@refreshResult.SeriesFailed</strong></div>
+            <div class="metric-card"><span>Total rows read</span><strong>@refreshResult.TotalRowsRead</strong></div>
+            <div class="metric-card"><span>Inserted</span><strong>@refreshResult.TotalRowsInserted</strong></div>
+            <div class="metric-card"><span>Updated</span><strong>@refreshResult.TotalRowsUpdated</strong></div>
+            <div class="metric-card"><span>Skipped</span><strong>@refreshResult.TotalRowsSkipped</strong></div>
+        </div>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>External series</th>
+                        <th>Window</th>
+                        <th>Status</th>
+                        <th class="number">Read</th>
+                        <th class="number">Inserted</th>
+                        <th class="number">Updated</th>
+                        <th class="number">Skipped</th>
+                        <th>Error</th>
+                        <th>Warnings</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var result in refreshResult.SeriesResults)
+                    {
+                        <tr>
+                            <td><code>@result.ExternalSeriesCode</code></td>
+                            <td>@FormatDate(result.FromDate) to @FormatDate(result.ToDate)</td>
+                            <td><span class="pill">@result.Status</span></td>
+                            <td class="number">@result.RowsRead</td>
+                            <td class="number">@result.RowsInserted</td>
+                            <td class="number">@result.RowsUpdated</td>
+                            <td class="number">@result.RowsSkipped</td>
+                            <td>@result.ErrorMessage</td>
+                            <td>@string.Join(" ", result.Warnings)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<section class="card">
+    <div class="section-heading">
+        <div>
+            <h2>Step 2 — Check data freshness</h2>
+            <p class="section-note">Active FRED series freshness uses the same thresholds as /imports: daily &lt;= 5 days, monthly &lt;= 45 days, unknown &lt;= 14 days.</p>
+        </div>
+        <button type="button" disabled="@IsBusy" @onclick="LoadFreshnessRowsAsync">Reload freshness</button>
+    </div>
+
+    @if (freshnessRows is null)
+    {
+        <p>Loading active FRED series freshness...</p>
+    }
+    else if (freshnessRows.Count == 0)
+    {
+        <p>No active FRED series are configured.</p>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ExternalSeriesId</th>
+                        <th>Indicator</th>
+                        <th>Frequency</th>
+                        <th>LatestObservationDate</th>
+                        <th class="number">DaysSinceLatestObservation</th>
+                        <th>FreshnessStatus</th>
+                        <th>LastSuccessfulImportUtc</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in freshnessRows)
+                    {
+                        <tr>
+                            <td><code>@row.ExternalSeriesId</code></td>
+                            <td>@row.IndicatorName</td>
+                            <td>@row.Frequency</td>
+                            <td>@FormatNullableDate(row.LatestObservationDate)</td>
+                            <td class="number">@FormatNullableInt(row.DaysSinceLatestObservation)</td>
+                            <td><span class="pill @FreshnessCssClass(row.FreshnessStatus)">@row.FreshnessStatus</span></td>
+                            <td>@FormatDateTime(row.LastSuccessfulImportUtc)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<section class="card">
+    <h2>Step 3 — Recalculate manual scores</h2>
+    <p class="section-note">Manual ImportedManual scoring only. It does not run after import unless this button or the full manual workflow button is clicked.</p>
+    <div class="form-grid">
+        <label>
+            ScoreDate
+            <InputDate @bind-Value="request.ScoreDate" disabled="@IsBusy" />
+        </label>
+    </div>
+    <button type="button" disabled="@IsBusy" @onclick="RecalculateScoresAsync">
+        @(isScoringRunning ? "Recalculating ImportedManual scores..." : "Recalculate ImportedManual scores")
+    </button>
+
+    @if (scoringResult is not null)
+    {
+        <div class="summary-grid workflow-result-grid">
+            <div class="metric-card"><span>ScoreDate</span><strong>@FormatDate(scoringResult.ScoreDate)</strong></div>
+            <div class="metric-card"><span>ScoringModelVersion</span><strong>@scoringResult.ScoringModelVersion</strong></div>
+            <div class="metric-card"><span>ScoresInserted</span><strong>@scoringResult.ScoresInserted</strong></div>
+            <div class="metric-card"><span>ScoresUpdated</span><strong>@scoringResult.ScoresUpdated</strong></div>
+            <div class="metric-card"><span>ScoresFailed</span><strong>@scoringResult.ScoresFailed</strong></div>
+        </div>
+
+        @if (scoringResult.Warnings.Count > 0)
+        {
+            <div class="message warning">
+                <strong>Warnings</strong>
+                <ul>
+                    @foreach (var warning in scoringResult.Warnings)
+                    {
+                        <li>@warning</li>
+                    }
+                </ul>
+            </div>
+        }
+    }
+</section>
+
+<section class="card">
+    <div class="section-heading">
+        <div>
+            <h2>Step 4 — Review score quality</h2>
+            <p class="section-note">Latest ImportedManual score set for the preferred/latest model version.</p>
+        </div>
+        <NavLink class="button-link" href="">Open Dashboard</NavLink>
+    </div>
+
+    @if (latestScores is null)
+    {
+        <p>Loading latest score quality...</p>
+    }
+    else if (latestScores.Count == 0)
+    {
+        <p>No ImportedManual scores exist yet. Run Step 3 after refreshing or reviewing imported observations.</p>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>MacroFactor</th>
+                        <th class="number">RawScore</th>
+                        <th class="number">WeightedScore</th>
+                        <th>DataQualityStatus</th>
+                        <th>SourceObservationDate</th>
+                        <th class="number">DaysSinceSourceObservation</th>
+                        <th class="number">WindowObservationCount</th>
+                        <th class="number">WindowChange</th>
+                        <th>ScoringConfidence</th>
+                        <th>ScoringConfidenceNotes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var score in latestScores)
+                    {
+                        <tr>
+                            <td>@score.MacroFactor?.Name</td>
+                            <td class="number">@score.RawScore</td>
+                            <td class="number">@score.WeightedScore</td>
+                            <td><span class="pill @DataQualityStatusCss(score.DataQualityStatus)">@FormatNullableText(score.DataQualityStatus)</span></td>
+                            <td>@FormatNullableDate(score.SourceObservationDate)</td>
+                            <td class="number">@FormatNullableInt(score.DaysSinceSourceObservation)</td>
+                            <td class="number">@FormatNullableInt(score.WindowObservationCount)</td>
+                            <td class="number">@FormatSignedNullableDecimal(score.WindowChange)</td>
+                            <td><span class="pill @ScoringConfidenceCss(score.ScoringConfidence)">@FormatNullableText(score.ScoringConfidence)</span></td>
+                            <td>@FormatNullableText(score.ScoringConfidenceNotes)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private readonly WorkflowRequest request = new()
+    {
+        ScoreDate = DateOnly.FromDateTime(DateTime.UtcNow)
+    };
+    private bool isRefreshRunning;
+    private bool isScoringRunning;
+    private bool isFullWorkflowRunning;
+    private OperationalWorkflowStatus? status;
+    private List<ExternalSeriesAdminRow>? freshnessRows;
+    private IReadOnlyList<FactorScore>? latestScores;
+    private ImportBatchResult? refreshResult;
+    private ImportedObservationScoringResult? scoringResult;
+    private OperationalWorkflowRunResult? fullWorkflowResult;
+
+    private bool IsBusy => isRefreshRunning || isScoringRunning || isFullWorkflowRunning;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWorkflowDataAsync();
+    }
+
+    private async Task LoadWorkflowDataAsync()
+    {
+        status = await WorkflowService.GetWorkflowStatusAsync();
+        await LoadFreshnessRowsAsync();
+        await LoadLatestScoresAsync();
+    }
+
+    private async Task LoadFreshnessRowsAsync()
+    {
+        freshnessRows = await WorkflowService.GetFreshnessRowsAsync();
+    }
+
+    private async Task LoadLatestScoresAsync()
+    {
+        latestScores = await WorkflowService.GetLatestImportedManualScoresAsync();
+    }
+
+    private async Task RefreshAllFredAsync()
+    {
+        isRefreshRunning = true;
+        fullWorkflowResult = null;
+        try
+        {
+            refreshResult = await WorkflowService.RefreshAllFredAsync();
+            await LoadWorkflowDataAsync();
+        }
+        finally
+        {
+            isRefreshRunning = false;
+        }
+    }
+
+    private async Task RecalculateScoresAsync()
+    {
+        isScoringRunning = true;
+        fullWorkflowResult = null;
+        try
+        {
+            scoringResult = await WorkflowService.RecalculateScoresAsync(request.ScoreDate);
+            await LoadWorkflowDataAsync();
+        }
+        finally
+        {
+            isScoringRunning = false;
+        }
+    }
+
+    private async Task RunFullManualWorkflowAsync()
+    {
+        isFullWorkflowRunning = true;
+        try
+        {
+            fullWorkflowResult = await WorkflowService.RunFullManualWorkflowAsync(request.ScoreDate);
+            refreshResult = fullWorkflowResult.RefreshResult;
+            scoringResult = fullWorkflowResult.ScoringResult;
+            await LoadWorkflowDataAsync();
+        }
+        finally
+        {
+            isFullWorkflowRunning = false;
+        }
+    }
+
+    private static string FormatDate(DateOnly value) => value.ToString("yyyy-MM-dd");
+
+    private static string FormatNullableDate(DateOnly? value) => value?.ToString("yyyy-MM-dd") ?? "—";
+
+    private static string FormatDateTime(DateTime? value) => value?.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? "—";
+
+    private static string FormatNullableInt(int? value) => value?.ToString() ?? "—";
+
+    private static string FormatNullableText(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value!;
+
+    private static string FormatSignedNullableDecimal(decimal? value) => value?.ToString("+0.##;-0.##;0") ?? "—";
+
+    private static string FreshnessCssClass(string status) => status switch
+    {
+        FreshnessStatus.Fresh => "pill-success",
+        FreshnessStatus.Stale => "pill-warning",
+        FreshnessStatus.Missing => "pill-muted",
+        _ => string.Empty
+    };
+
+    private static string DataQualityStatusCss(string? status) => status switch
+    {
+        "Fresh" => "pill-success",
+        "Stale" => "pill-warning",
+        "Missing" => "pill-error",
+        "Placeholder" => "pill-muted",
+        _ => "pill-muted"
+    };
+
+    private static string ScoringConfidenceCss(string? confidence) => confidence switch
+    {
+        "High" => "pill-success",
+        "Medium" => "pill-warning",
+        "Low" => "pill-error",
+        "Missing" => "pill-error",
+        "Placeholder" => "pill-muted",
+        _ => "pill-muted"
+    };
+
+    private sealed class WorkflowRequest
+    {
+        public DateOnly ScoreDate { get; set; }
+    }
+}

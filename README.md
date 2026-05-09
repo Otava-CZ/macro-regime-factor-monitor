@@ -159,6 +159,16 @@ FRED imports can be tested from this page when `Fred:ApiKey` is configured outsi
 
 v0.7.3 persists fetched observations into `IndicatorObservations`. Existing observations with the same `IndicatorId` and `ObservationDate` are skipped by default, so seeded/sample observations are not overwritten during normal manual imports. `ForceRefresh` controls overwrites when exposed or used, and it defaults to false in the admin UI. The dashboard continues to use the current persisted `FactorScores` until the separate manual scoring action is run; imported observations are not converted into `FactorScores` automatically.
 
+## Operational workflow
+
+v0.8.3 adds an **Operational Workflow** page at `/workflow` that coordinates the manual macro-monitor process in one place: refresh active FRED data, review import freshness, recalculate ImportedManual scores, inspect confidence/data-quality diagnostics, and then open the dashboard for regime interpretation. The existing `/imports`, `/scoring`, and dashboard pages remain available and continue to work independently.
+
+The **Run full manual workflow** control is still an explicit manual button, not a scheduled job. It sequentially refreshes active FRED series, recalculates ImportedManual scores for the selected ScoreDate, and reloads the workflow status summary. If one or more series fails during refresh, scoring still runs and the page warns the operator to review freshness and scoring confidence before using the dashboard.
+
+Refresh and scoring remain auditable through the existing data model: import activity is recorded in `DataImportRuns`, and manual score outputs are stored in `FactorScores` with the ImportedManual data mode and scoring model version. The workflow does not delete Sample scores or older ImportedManual score versions/dates.
+
+There is no automatic trading, broker integration, execution routing, TradeIdea automation, hidden background job, automatic startup refresh, automatic startup scoring, scheduled job, or new external data source in this workflow. Azure deployment will later use the same manual workflow first before any scheduled operational model is introduced.
+
 ## Operational manual refresh
 
 v0.7.4 keeps all import activity manually controlled from the **Data Imports** admin page at `/imports`. Operators can refresh one active `ExternalSeries` with explicit from/to dates or click **Refresh all active FRED series** to sequentially refresh every active FRED mapping (`CPILFESL`, `VIXCLS`, and `DGS10` when seeded and active). No scheduled Quartz job is registered, no import runs automatically on app startup, and no API keys or secrets are displayed or stored in source control.
