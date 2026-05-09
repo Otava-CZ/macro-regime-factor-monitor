@@ -303,6 +303,12 @@ button:disabled {
     color: #92400e;
 }
 
+.message.success {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+}
+
 .result-card .metric-card {
     box-shadow: none;
     margin-bottom: 0;

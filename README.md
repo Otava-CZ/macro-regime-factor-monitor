@@ -103,6 +103,52 @@ dotnet user-secrets set "ConnectionStrings:MacroRegime" "Host=db.<project-ref>.s
 The startup path applies EF Core migrations for Postgres or creates/upgrades the local SQLite schema before seeding the sample monitor data. The legacy lightweight column upgrade remains SQLite-only and is not run against Postgres.
 
 
+
+## Azure App Service POC deployment
+
+v0.9.0 prepares the app for a first Azure App Service proof-of-concept deployment without deploying Azure infrastructure from this repository. The POC remains a manual operator workflow: open `/workflow`, run the full manual workflow, review `/imports` and `/scoring`, then review the dashboard.
+
+Required Azure App Service **Configuration** settings for the POC:
+
+| Setting | Value |
+| --- | --- |
+| `Database__Provider` | `Postgres` |
+| `ConnectionStrings__MacroRegime` | `<Supabase session-pooler connection string>` |
+| `Fred__ApiKey` | `<FRED API key>` |
+| `Fred__BaseUrl` | `https://api.stlouisfed.org/fred` |
+
+Use the Supabase Session Pooler host if the direct database host has IPv6 or DNS issues from Azure App Service. Do not put secrets in `appsettings.json`; keep the FRED key and Postgres connection string in Azure App Service Configuration for the POC, and consider Azure Key Vault integration later.
+
+For local Postgres-style configuration, use .NET user secrets instead of editing source-controlled settings:
+
+```powershell
+dotnet user-secrets set "Database:Provider" "Postgres" --project ./src/MacroRegimeFactorMonitor/MacroRegimeFactorMonitor.csproj
+dotnet user-secrets set "ConnectionStrings:MacroRegime" "<connection-string>" --project ./src/MacroRegimeFactorMonitor/MacroRegimeFactorMonitor.csproj
+dotnet user-secrets set "Fred:ApiKey" "<fred-api-key>" --project ./src/MacroRegimeFactorMonitor/MacroRegimeFactorMonitor.csproj
+```
+
+Deployment readiness is visible through:
+
+- `/health` for a lightweight JSON health check. It opens the configured database connection, runs `SELECT 1`, reports safe configuration booleans, and never calls FRED.
+- `/ready` for database-backed operational readiness. It reports active FRED series, latest successful FRED import, latest `ImportedManual` score date/version, and warnings when the app is usable but incomplete.
+- `/system` for a read-only UI summary of the same safe deployment diagnostics plus latest startup sync status.
+
+No scheduled jobs, hidden background refresh, automatic scoring, broker integration, automatic trading, or `TradeIdea` automation are included in this POC readiness PR.
+
+### Production safety checklist
+
+Before treating an App Service POC instance as operationally ready, verify:
+
+- [ ] FRED key is configured outside source.
+- [ ] Postgres connection string is configured outside source.
+- [ ] `/health` returns `Healthy` or `Degraded` with `databaseReachable = true`.
+- [ ] `/ready` returns `ready = true` or warnings only.
+- [ ] `/workflow` loads.
+- [ ] Full manual workflow succeeds.
+- [ ] Dashboard shows `ImportedManual` `v0.8.2` scores.
+- [ ] No API key appears in logs.
+- [ ] No connection string appears in logs.
+
 ## Startup synchronization safety
 
 Startup synchronization is designed to be safe to run repeatedly against the same SQLite or Supabase/Postgres database.
