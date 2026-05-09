@@ -33,6 +33,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
     builder.Services.AddDbContextFactory<MacroRegimeDbContext>(options =>
         options.UseConfiguredDatabase(builder.Configuration));
     builder.Services.AddScoped<FactorScoringService>();
+    builder.Services.AddScoped<ImportedObservationScoringService>();
     builder.Services.AddScoped<JournalService>();
     builder.Services.AddScoped<StartupSyncService>();
     builder.Services.AddHttpClient<IDataSourceClient, FredDataSourceClient>();

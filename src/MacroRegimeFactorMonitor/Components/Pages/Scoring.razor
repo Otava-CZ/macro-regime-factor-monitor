@@ -1,0 +1,149 @@
+@page "/scoring"
+@inject ImportedObservationScoringService ImportedScoringService
+
+<PageTitle>Scoring</PageTitle>
+
+<h1>Scoring</h1>
+<p class="lede">Manual imported-data scoring bridges persisted FRED observations into current FactorScores. It never runs on a schedule, startup, or import completion.</p>
+
+<section class="card">
+    <h2>Manual imported observation recalculation</h2>
+    <p class="section-note">The v0.8.0 model is placeholder logic. It maps only CPILFESL, DGS10, and VIXCLS; unmapped factors receive explicit neutral placeholders.</p>
+
+    <EditForm Model="request" OnValidSubmit="RecalculateScoresAsync">
+        <div class="form-grid">
+            <label>
+                ScoreDate
+                <InputDate @bind-Value="request.ScoreDate" disabled="@isRunning" />
+            </label>
+        </div>
+        <button type="submit" disabled="@isRunning">
+            @(isRunning ? "Recalculating scores..." : "Recalculate current scores from imported observations")
+        </button>
+    </EditForm>
+</section>
+
+@if (latestResult is not null)
+{
+    <section class="card result-card">
+        <h2>Latest manual scoring result</h2>
+        <div class="summary-grid">
+            <div class="metric-card"><span>ScoreDate</span><strong>@FormatDate(latestResult.ScoreDate)</strong></div>
+            <div class="metric-card"><span>DataMode</span><strong>@latestResult.DataMode</strong></div>
+            <div class="metric-card"><span>ScoringModelVersion</span><strong>@latestResult.ScoringModelVersion</strong></div>
+            <div class="metric-card"><span>Scores inserted</span><strong>@latestResult.ScoresInserted</strong></div>
+            <div class="metric-card"><span>Scores updated</span><strong>@latestResult.ScoresUpdated</strong></div>
+            <div class="metric-card"><span>Scores skipped/failed</span><strong>@(latestResult.ScoresSkipped + latestResult.ScoresFailed)</strong></div>
+        </div>
+
+        @if (latestResult.Warnings.Count > 0)
+        {
+            <div class="message warning">
+                <strong>Warnings</strong>
+                <ul>
+                    @foreach (var warning in latestResult.Warnings)
+                    {
+                        <li>@warning</li>
+                    }
+                </ul>
+            </div>
+        }
+    </section>
+}
+
+<section class="card">
+    <div class="section-heading">
+        <div>
+            <h2>Latest ImportedManual FactorScores</h2>
+            <p class="section-note">Read-only view of the latest manually calculated imported-observation score set.</p>
+        </div>
+        <button type="button" disabled="@isRunning" @onclick="LoadLatestScoresAsync">Refresh table</button>
+    </div>
+
+    @if (latestScores is null)
+    {
+        <p>Loading latest ImportedManual scores...</p>
+    }
+    else if (latestScores.Count == 0)
+    {
+        <p>No ImportedManual scores exist yet. Run the manual recalculation after importing FRED observations.</p>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ScoreDate</th>
+                        <th>MacroFactor</th>
+                        <th class="number">RawScore</th>
+                        <th class="number">WeightedScore</th>
+                        <th>RegimeImpact</th>
+                        <th class="number">SourceObservationCount</th>
+                        <th>CalculatedAtUtc</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var score in latestScores)
+                    {
+                        <tr>
+                            <td>@FormatDate(score.ScoreDate)</td>
+                            <td>@score.MacroFactor?.Name</td>
+                            <td class="number">@score.RawScore</td>
+                            <td class="number">@score.WeightedScore</td>
+                            <td><span class="pill">@score.RegimeImpact</span></td>
+                            <td class="number">@score.SourceObservationCount</td>
+                            <td>@FormatDateTime(score.CalculatedAtUtc)</td>
+                            <td>@(score.CalculationNotes ?? score.Notes)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private readonly ScoringRequest request = new()
+    {
+        ScoreDate = DateOnly.FromDateTime(DateTime.UtcNow)
+    };
+    private bool isRunning;
+    private ImportedObservationScoringResult? latestResult;
+    private IReadOnlyList<FactorScore>? latestScores;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLatestScoresAsync();
+    }
+
+    private async Task RecalculateScoresAsync()
+    {
+        isRunning = true;
+        try
+        {
+            latestResult = await ImportedScoringService.RecalculateCurrentScoresAsync(request.ScoreDate);
+            await LoadLatestScoresAsync();
+        }
+        finally
+        {
+            isRunning = false;
+        }
+    }
+
+    private async Task LoadLatestScoresAsync()
+    {
+        latestScores = await ImportedScoringService.GetLatestImportedManualScoresAsync();
+    }
+
+    private static string FormatDate(DateOnly date) => date.ToString("yyyy-MM-dd");
+
+    private static string FormatDateTime(DateTime? dateTime) =>
+        dateTime?.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? "—";
+
+    private sealed class ScoringRequest
+    {
+        public DateOnly ScoreDate { get; set; }
+    }
+}
