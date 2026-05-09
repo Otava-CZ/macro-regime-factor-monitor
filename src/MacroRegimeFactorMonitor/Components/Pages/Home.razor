@@ -79,6 +79,9 @@ else
                     <th>DataQualityStatus</th>
                     <th>SourceObservationDate</th>
                     <th class="number">DaysSinceSourceObservation</th>
+                    <th>ScoringConfidence</th>
+                    <th class="number">WindowObservationCount</th>
+                    <th class="number">WindowChange</th>
                     <th>Interpretation note</th>
                     <th>Notes</th>
                 </tr>
@@ -98,6 +101,9 @@ else
                         <td><span class="pill @DataQualityStatusCss(score.DataQualityStatus)">@FormatNullableText(score.DataQualityStatus)</span></td>
                         <td>@FormatNullableDate(score.SourceObservationDate)</td>
                         <td class="number">@FormatNullableInt(score.DaysSinceSourceObservation)</td>
+                        <td><span class="pill @ScoringConfidenceCss(score.ScoringConfidence)">@FormatNullableText(score.ScoringConfidence)</span></td>
+                        <td class="number">@FormatNullableInt(score.WindowObservationCount)</td>
+                        <td class="number">@FormatSignedNullableDecimal(score.WindowChange)</td>
                         <td>@FactorScoreCalculator.ExplainPressureImpact(pressureContribution, score.MacroFactor?.Name)</td>
                         <td>@score.Notes</td>
                     </tr>
@@ -181,10 +187,22 @@ else
 
     private static string FormatNullableText(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value!;
 
+    private static string FormatSignedNullableDecimal(decimal? value) => value?.ToString("+0.##;-0.##;0") ?? "—";
+
     private static string DataQualityStatusCss(string? status) => status switch
     {
         "Fresh" => "pill-success",
         "Stale" => "pill-warning",
+        "Missing" => "pill-error",
+        "Placeholder" => "pill-muted",
+        _ => "pill-muted"
+    };
+
+    private static string ScoringConfidenceCss(string? confidence) => confidence switch
+    {
+        "High" => "pill-success",
+        "Medium" => "pill-warning",
+        "Low" => "pill-error",
         "Missing" => "pill-error",
         "Placeholder" => "pill-muted",
         _ => "pill-muted"
