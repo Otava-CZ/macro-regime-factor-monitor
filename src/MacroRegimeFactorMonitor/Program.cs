@@ -12,6 +12,7 @@ ConfigureServices(builder);
 var app = builder.Build();
 
 ConfigureMiddleware(app);
+LogSafeStartupConfiguration(app);
 await RunStartupSyncAsync(app);
 MapEndpoints(app);
 
@@ -37,6 +38,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
     builder.Services.AddScoped<OperationalWorkflowService>();
     builder.Services.AddScoped<JournalService>();
     builder.Services.AddScoped<StartupSyncService>();
+    builder.Services.AddScoped<AppConfigurationDiagnosticsService>();
     builder.Services.AddHttpClient<IDataSourceClient, FredDataSourceClient>();
     builder.Services.AddScoped<IDataSourceClient, BlsDataSourceClient>();
     builder.Services.AddScoped<IDataSourceClient, EiaDataSourceClient>();
@@ -66,8 +68,37 @@ static async Task RunStartupSyncAsync(WebApplication app)
     await startupSync.RunAsync();
 }
 
+static void LogSafeStartupConfiguration(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var diagnostics = scope.ServiceProvider.GetRequiredService<AppConfigurationDiagnosticsService>();
+    var snapshot = diagnostics.GetSnapshot();
+
+    app.Logger.LogInformation(
+        "Startup configuration: Environment={Environment}, DatabaseProvider={DatabaseProvider}, FredApiKeyConfigured={FredApiKeyConfigured}.",
+        snapshot.Environment,
+        snapshot.DatabaseProvider,
+        snapshot.FredApiKeyConfigured);
+}
+
 static void MapEndpoints(WebApplication app)
 {
+    app.MapGet("/health", async (AppConfigurationDiagnosticsService diagnostics, CancellationToken cancellationToken) =>
+    {
+        var health = await diagnostics.GetHealthAsync(cancellationToken);
+        return health.DatabaseReachable
+            ? Results.Ok(health)
+            : Results.Json(health, statusCode: StatusCodes.Status503ServiceUnavailable);
+    });
+
+    app.MapGet("/ready", async (AppConfigurationDiagnosticsService diagnostics, CancellationToken cancellationToken) =>
+    {
+        var readiness = await diagnostics.GetReadinessAsync(cancellationToken);
+        return readiness.DatabaseReady
+            ? Results.Ok(readiness)
+            : Results.Json(readiness, statusCode: StatusCodes.Status503ServiceUnavailable);
+    });
+
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode();
 }

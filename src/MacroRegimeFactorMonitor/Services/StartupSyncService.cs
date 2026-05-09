@@ -29,7 +29,7 @@ public sealed class StartupSyncService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Startup sync failed.");
+            logger.LogError("Startup sync failed. ExceptionType={ExceptionType}.", ex.GetType().Name);
             await TryWriteFailedRunAsync(startedAtUtc, appliedMigrations, seedResult, ex);
             throw;
         }
@@ -123,11 +123,11 @@ public sealed class StartupSyncService(
                 FailedStatus,
                 appliedMigrations,
                 seedResult,
-                exception.Message);
+                $"Startup sync failed with {exception.GetType().Name}.");
         }
         catch (Exception auditException)
         {
-            logger.LogWarning(auditException, "Unable to write failed startup sync audit row.");
+            logger.LogWarning("Unable to write failed startup sync audit row. ExceptionType={ExceptionType}.", auditException.GetType().Name);
         }
     }
 }

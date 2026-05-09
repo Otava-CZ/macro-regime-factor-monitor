@@ -1,0 +1,111 @@
+@page "/system"
+@inject AppConfigurationDiagnosticsService DiagnosticsService
+
+<PageTitle>System</PageTitle>
+
+<h1>System</h1>
+<p class="lede">Read-only deployment diagnostics for Azure App Service POC readiness. Secrets and connection strings are never displayed.</p>
+
+@if (diagnostics is null)
+{
+    <p>Loading system diagnostics...</p>
+}
+else
+{
+    <section class="summary-grid">
+        <div class="metric-card"><span>Environment</span><strong>@diagnostics.Configuration.Environment</strong></div>
+        <div class="metric-card"><span>Database provider</span><strong>@diagnostics.Configuration.DatabaseProvider</strong></div>
+        <div class="metric-card"><span>DB connection configured</span><strong>@FormatBool(diagnostics.Configuration.DatabaseConnectionConfigured)</strong></div>
+        <div class="metric-card"><span>Database reachable</span><strong>@FormatBool(diagnostics.DatabaseReachable)</strong></div>
+        <div class="metric-card"><span>FRED API key configured</span><strong>@FormatBool(diagnostics.Configuration.FredApiKeyConfigured)</strong></div>
+        <div class="metric-card"><span>FRED base URL</span><strong>@diagnostics.Configuration.FredBaseUrlSource</strong></div>
+        <div class="metric-card"><span>Latest successful FRED import</span><strong>@FormatDateTime(diagnostics.Readiness.LatestSuccessfulImportUtc)</strong></div>
+        <div class="metric-card"><span>Latest ImportedManual score</span><strong>@FormatScore(diagnostics.Readiness.LatestImportedManualScoreDate, diagnostics.Readiness.LatestImportedManualScoringModelVersion)</strong></div>
+    </section>
+
+    <section class="card">
+        <h2>Startup sync</h2>
+        @if (diagnostics.StartupSync is null)
+        {
+            <p>No startup sync audit row is available.</p>
+        }
+        else
+        {
+            <div class="summary-grid">
+                <div class="metric-card"><span>Status</span><strong>@diagnostics.StartupSync.Status</strong></div>
+                <div class="metric-card"><span>Started UTC</span><strong>@FormatDateTime(diagnostics.StartupSync.StartedAtUtc)</strong></div>
+                <div class="metric-card"><span>Finished UTC</span><strong>@FormatDateTime(diagnostics.StartupSync.FinishedAtUtc)</strong></div>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(diagnostics.StartupSync.Message))
+            {
+                <p>@diagnostics.StartupSync.Message</p>
+            }
+            @if (!string.IsNullOrWhiteSpace(diagnostics.StartupSync.ErrorMessage))
+            {
+                <p class="message warning">@diagnostics.StartupSync.ErrorMessage</p>
+            }
+        }
+    </section>
+
+    <section class="card">
+        <h2>Readiness</h2>
+        <div class="summary-grid">
+            <div class="metric-card"><span>Ready</span><strong>@FormatBool(diagnostics.Readiness.Ready)</strong></div>
+            <div class="metric-card"><span>Database ready</span><strong>@FormatBool(diagnostics.Readiness.DatabaseReady)</strong></div>
+            <div class="metric-card"><span>FRED configured</span><strong>@FormatBool(diagnostics.Readiness.FredConfigured)</strong></div>
+            <div class="metric-card"><span>Active FRED series</span><strong>@diagnostics.Readiness.ActiveFredSeriesCount</strong></div>
+        </div>
+
+        @if (diagnostics.Readiness.Warnings.Count > 0)
+        {
+            <div class="message warning">
+                <strong>Warnings</strong>
+                <ul>
+                    @foreach (var warning in diagnostics.Readiness.Warnings)
+                    {
+                        <li>@warning</li>
+                    }
+                </ul>
+            </div>
+        }
+        else
+        {
+            <p class="message success">Readiness checks passed.</p>
+        }
+    </section>
+
+    <section class="card">
+        <h2>Endpoint links</h2>
+        <p>
+            <a href="/health" target="_blank">/health</a>
+            <span> | </span>
+            <a href="/ready" target="_blank">/ready</a>
+        </p>
+    </section>
+}
+
+@code {
+    private SystemDiagnosticsResponse? diagnostics;
+
+    protected override async Task OnInitializedAsync()
+    {
+        diagnostics = await DiagnosticsService.GetSystemDiagnosticsAsync();
+    }
+
+    private static string FormatBool(bool value) => value ? "Yes" : "No";
+
+    private static string FormatDateTime(DateTime? value) =>
+        value.HasValue ? $"{value.Value:yyyy-MM-dd HH:mm:ss} UTC" : "—";
+
+    private static string FormatScore(DateOnly? scoreDate, string? version)
+    {
+        if (!scoreDate.HasValue)
+        {
+            return "—";
+        }
+
+        return string.IsNullOrWhiteSpace(version)
+            ? scoreDate.Value.ToString("yyyy-MM-dd")
+            : $"{scoreDate.Value:yyyy-MM-dd} / {version}";
+    }
+}
