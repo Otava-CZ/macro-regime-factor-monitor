@@ -339,3 +339,27 @@ button:disabled {
     background: #fee2e2;
     color: #991b1b;
 }
+
+
+.button-link {
+    background: #2563eb;
+    border-radius: 0.65rem;
+    color: #ffffff;
+    display: inline-block;
+    font-weight: 700;
+    padding: 0.75rem 1rem;
+    text-decoration: none;
+}
+
+.button-link:hover {
+    background: #1d4ed8;
+    color: #ffffff;
+}
+
+.compact-card {
+    padding: 1rem 1.25rem;
+}
+
+.workflow-result-grid {
+    margin-top: 1rem;
+}
