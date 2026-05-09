@@ -22,6 +22,20 @@ public sealed class FactorScore
     public int? DaysSinceSourceObservation { get; set; }
     public string? DataQualityStatus { get; set; }
     public string? DataQualityNotes { get; set; }
+    public int? WindowObservationCount { get; set; }
+    public DateOnly? WindowStartDate { get; set; }
+    public DateOnly? WindowEndDate { get; set; }
+    public decimal? WindowMinValue { get; set; }
+    public decimal? WindowMaxValue { get; set; }
+    public decimal? WindowAverageValue { get; set; }
+    public decimal? WindowFirstValue { get; set; }
+    public decimal? WindowLastValue { get; set; }
+    public decimal? WindowChange { get; set; }
+    public decimal? WindowChangePercent { get; set; }
+    public decimal? WindowSlope { get; set; }
+    public decimal? WindowAcceleration { get; set; }
+    public string? ScoringConfidence { get; set; }
+    public string? ScoringConfidenceNotes { get; set; }
     public DateTime? CalculatedAtUtc { get; set; }
     public string? CalculationNotes { get; set; }
 }

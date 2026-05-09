@@ -87,6 +87,20 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
             [nameof(FactorScore.DaysSinceSourceObservation)] = "INTEGER NULL",
             [nameof(FactorScore.DataQualityStatus)] = "TEXT NULL",
             [nameof(FactorScore.DataQualityNotes)] = "TEXT NULL",
+            [nameof(FactorScore.WindowObservationCount)] = "INTEGER NULL",
+            [nameof(FactorScore.WindowStartDate)] = "TEXT NULL",
+            [nameof(FactorScore.WindowEndDate)] = "TEXT NULL",
+            [nameof(FactorScore.WindowMinValue)] = "TEXT NULL",
+            [nameof(FactorScore.WindowMaxValue)] = "TEXT NULL",
+            [nameof(FactorScore.WindowAverageValue)] = "TEXT NULL",
+            [nameof(FactorScore.WindowFirstValue)] = "TEXT NULL",
+            [nameof(FactorScore.WindowLastValue)] = "TEXT NULL",
+            [nameof(FactorScore.WindowChange)] = "TEXT NULL",
+            [nameof(FactorScore.WindowChangePercent)] = "TEXT NULL",
+            [nameof(FactorScore.WindowSlope)] = "TEXT NULL",
+            [nameof(FactorScore.WindowAcceleration)] = "TEXT NULL",
+            [nameof(FactorScore.ScoringConfidence)] = "TEXT NULL",
+            [nameof(FactorScore.ScoringConfidenceNotes)] = "TEXT NULL",
             [nameof(FactorScore.CalculatedAtUtc)] = "TEXT NULL",
             [nameof(FactorScore.CalculationNotes)] = "TEXT NULL"
         };
@@ -308,6 +322,16 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
             entity.Property(score => score.ObservationChange).HasPrecision(18, 6);
             entity.Property(score => score.ObservationChangePercent).HasPrecision(18, 6);
             entity.Property(score => score.DataQualityStatus).HasMaxLength(40);
+            entity.Property(score => score.WindowMinValue).HasPrecision(18, 6);
+            entity.Property(score => score.WindowMaxValue).HasPrecision(18, 6);
+            entity.Property(score => score.WindowAverageValue).HasPrecision(18, 6);
+            entity.Property(score => score.WindowFirstValue).HasPrecision(18, 6);
+            entity.Property(score => score.WindowLastValue).HasPrecision(18, 6);
+            entity.Property(score => score.WindowChange).HasPrecision(18, 6);
+            entity.Property(score => score.WindowChangePercent).HasPrecision(18, 6);
+            entity.Property(score => score.WindowSlope).HasPrecision(18, 6);
+            entity.Property(score => score.WindowAcceleration).HasPrecision(18, 6);
+            entity.Property(score => score.ScoringConfidence).HasMaxLength(40);
             entity.HasIndex(score => new
             {
                 score.MacroFactorId,
