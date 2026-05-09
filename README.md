@@ -104,6 +104,79 @@ The startup path applies EF Core migrations for Postgres or creates/upgrades the
 
 
 
+## Docker deployment
+
+v0.9.1 adds Docker packaging for production-like hosts without requiring Azure or any other cloud-specific deployment target. The containerized app keeps the same manual dashboard, `/workflow`, `/imports`, `/scoring`, `/system`, `/health`, and `/ready` behavior as the local app.
+
+Build the image from the repository root:
+
+```powershell
+docker build -t macro-regime-monitor:local .
+```
+
+Run the image with production-like Postgres and FRED configuration in PowerShell:
+
+```powershell
+docker run --rm -p 8080:8080 ^
+  -e ASPNETCORE_ENVIRONMENT=Production ^
+  -e Database__Provider=Postgres ^
+  -e ConnectionStrings__MacroRegime="<Supabase session-pooler connection string>" ^
+  -e Fred__ApiKey="<FRED API key>" ^
+  -e Fred__BaseUrl="https://api.stlouisfed.org/fred" ^
+  macro-regime-monitor:local
+```
+
+Run the same image on Linux or macOS shells:
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e ASPNETCORE_ENVIRONMENT=Production \
+  -e Database__Provider=Postgres \
+  -e ConnectionStrings__MacroRegime="<Supabase session-pooler connection string>" \
+  -e Fred__ApiKey="<FRED API key>" \
+  -e Fred__BaseUrl="https://api.stlouisfed.org/fred" \
+  macro-regime-monitor:local
+```
+
+For Docker Compose, copy the template, fill in local secret values, and start the example stack:
+
+```bash
+cp .env.example .env
+# edit .env and set ConnectionStrings__MacroRegime plus Fred__ApiKey
+docker compose -f docker-compose.example.yml --env-file .env up --build
+```
+
+The `.env.example` file is safe to commit because it contains empty values and placeholders only. Do not commit `.env`, a FRED API key, a Supabase/Postgres connection string, or any other local secret file. Use the Supabase Session Pooler connection string for production-like deployments.
+
+After the container starts, run these smoke tests from the host:
+
+- `http://localhost:8080/health`
+- `http://localhost:8080/ready`
+- `http://localhost:8080/system`
+- `http://localhost:8080/workflow`
+
+Docker deployment safety notes:
+
+- `/health` and `/ready` expose only safe diagnostics and must not display API keys, connection strings, or other secrets.
+- The operational workflow remains manual: open `/workflow` and explicitly run the manual workflow after Supabase/Postgres and FRED are configured.
+- There is no scheduled job, automatic startup refresh, automatic scoring, broker integration, automatic trading, execution routing, order management, or `TradeIdea` automation in the Docker deployment path.
+- SQLite remains available when selected by configuration; Postgres remains the intended provider for Supabase-backed production-like use.
+
+### Docker acceptance checklist
+
+Before treating a Docker-hosted instance as production-like, verify:
+
+- [ ] `dotnet build` passes.
+- [ ] `docker build -t macro-regime-monitor:local .` succeeds.
+- [ ] `docker run` starts the app on port `8080`.
+- [ ] `/health` works from the container.
+- [ ] `/ready` works from the container.
+- [ ] `/system` loads from the container.
+- [ ] `/workflow` loads from the container.
+- [ ] The manual workflow works from the container with Supabase/FRED configured.
+- [ ] No secrets are present in `Dockerfile`, `docker-compose.example.yml`, `README.md`, or logs.
+
+
 ## Azure App Service POC deployment
 
 v0.9.0 prepares the app for a first Azure App Service proof-of-concept deployment without deploying Azure infrastructure from this repository. The POC remains a manual operator workflow: open `/workflow`, run the full manual workflow, review `/imports` and `/scoring`, then review the dashboard.

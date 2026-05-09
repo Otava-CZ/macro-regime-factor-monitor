@@ -1,0 +1,14 @@
+services:
+  macro-regime-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: macro-regime-monitor:local
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      Database__Provider: ${Database__Provider:-Postgres}
+      ConnectionStrings__MacroRegime: ${ConnectionStrings__MacroRegime:-<set-from-env-or-replace>}
+      Fred__ApiKey: ${Fred__ApiKey:-<set-from-env-or-replace>}
+      Fred__BaseUrl: ${Fred__BaseUrl:-https://api.stlouisfed.org/fred}

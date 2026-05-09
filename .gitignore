@@ -13,3 +13,12 @@ TestResults/
 # OS files
 .DS_Store
 Thumbs.db
+# Local environment/secrets
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+secrets.json
+*.pfx
+*.pem
+*.key
