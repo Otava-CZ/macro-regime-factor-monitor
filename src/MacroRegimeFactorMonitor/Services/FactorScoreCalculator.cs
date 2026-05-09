@@ -1,3 +1,5 @@
+using MacroRegimeFactorMonitor.Domain;
+
 namespace MacroRegimeFactorMonitor.Services;
 
 public static class FactorScoreCalculator
@@ -18,6 +20,15 @@ public static class FactorScoreCalculator
 
     public static string ClassifyImpact(decimal pressureContribution, string factorName = "") =>
         ClassifyPressureImpact(pressureContribution, factorName);
+
+    public static decimal CalculatePressureContribution(FactorScore score)
+    {
+        var contribution = string.Equals(score.DataMode, ImportedObservationScoringService.ImportedManualDataMode, StringComparison.OrdinalIgnoreCase)
+            ? score.WeightedScore
+            : CalculatePressureContribution(score.WeightedScore, score.MacroFactor?.Name);
+
+        return Math.Round(contribution, 2);
+    }
 
     public static decimal CalculatePressureContribution(decimal weightedScore, string? factorName)
     {

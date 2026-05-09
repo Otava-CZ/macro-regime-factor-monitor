@@ -119,7 +119,10 @@ public static class DatabaseSeeder
             RawScore = rawScore,
             WeightedScore = weightedScore,
             RegimeImpact = FactorScoreCalculator.ClassifyImpact(pressureContribution, item.Factor.Name),
-            Notes = "Seeded from the initial macro factor set."
+            Notes = "Seeded from the initial macro factor set.",
+            DataMode = "Sample",
+            ScoringModelVersion = "sample-v0",
+            SourceObservationCount = 0
         };
     }
 

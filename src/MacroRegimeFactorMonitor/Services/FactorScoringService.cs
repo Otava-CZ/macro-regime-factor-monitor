@@ -15,12 +15,30 @@ public sealed class FactorScoringService(IDbContextFactory<MacroRegimeDbContext>
             return DashboardSnapshot.Empty;
         }
 
-        var scores = await db.FactorScores
+        var latestDateScores = await db.FactorScores
             .AsNoTracking()
             .Include(score => score.MacroFactor)
             .Where(score => score.ScoreDate == latestDate)
-            .OrderBy(score => score.MacroFactor!.Name)
             .ToListAsync();
+
+        var preferredDataMode = latestDateScores.Any(score => score.DataMode == ImportedObservationScoringService.ImportedManualDataMode)
+            ? ImportedObservationScoringService.ImportedManualDataMode
+            : "Sample";
+        var scores = latestDateScores
+            .Where(score => score.DataMode == preferredDataMode)
+            .OrderBy(score => score.MacroFactor!.Name)
+            .ToList();
+        var dataModes = scores
+            .Select(score => score.DataMode)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(mode => mode)
+            .ToList();
+        var scoringModelVersions = scores
+            .Select(score => score.ScoringModelVersion)
+            .Where(version => !string.IsNullOrWhiteSpace(version))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(version => version)
+            .ToList();
 
         var compositeScore = Math.Round(scores.Sum(score => score.WeightedScore), 2);
         var categoryScores = scores
@@ -37,7 +55,9 @@ public sealed class FactorScoringService(IDbContextFactory<MacroRegimeDbContext>
             FactorScoreCalculator.ClassifyRegime(compositeScore),
             scores,
             categoryScores,
-            macroInterpretations);
+            macroInterpretations,
+            string.Join(", ", dataModes),
+            string.Join(", ", scoringModelVersions));
     }
 
 }
@@ -85,15 +105,14 @@ public static class MacroInterpretationScoring
             .Where(scoreByFactor.ContainsKey)
             .Select(factorName => scoreByFactor[factorName])
             .ToList();
-        var score = contributingScores.Sum(score =>
-            FactorScoreCalculator.CalculatePressureContribution(score.WeightedScore, score.MacroFactor?.Name));
+        var score = contributingScores.Sum(FactorScoreCalculator.CalculatePressureContribution);
         var supportingFactors = contributingScores.Count > 0
             ? string.Join(", ", contributingScores.Select(score => score.MacroFactor!.Name))
             : "No scored factors";
         var factorContributions = contributingScores.Count > 0
             ? string.Join("; ", contributingScores.Select(score =>
             {
-                var pressureContribution = FactorScoreCalculator.CalculatePressureContribution(score.WeightedScore, score.MacroFactor?.Name);
+                var pressureContribution = FactorScoreCalculator.CalculatePressureContribution(score);
                 return $"{score.MacroFactor!.Name}: {pressureContribution:+0.00;-0.00;0.00} ({FactorScoreCalculator.ClassifyPressureImpact(pressureContribution, score.MacroFactor.Name)})";
             }))
             : "No scored factor contributions yet.";
@@ -129,7 +148,9 @@ public sealed record DashboardSnapshot(
     string CompositeRegimeLabel,
     IReadOnlyList<FactorScore> FactorScores,
     IReadOnlyList<CategoryScore> CategoryScores,
-    IReadOnlyList<MacroInterpretation> MacroInterpretations)
+    IReadOnlyList<MacroInterpretation> MacroInterpretations,
+    string DataMode,
+    string ScoringModelVersion)
 {
     public static DashboardSnapshot Empty { get; } = new(
         DateOnly.MinValue,
@@ -138,7 +159,9 @@ public sealed record DashboardSnapshot(
         "No scores yet",
         [],
         [],
-        []);
+        [],
+        string.Empty,
+        string.Empty);
 }
 
 public sealed record CategoryScore(string Category, decimal Score);
