@@ -36,6 +36,7 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
     private async Task ApplySqliteSchemaUpgradesAsync()
     {
         await EnsureSqliteStartupSyncRunsTableAsync();
+        await EnsureSqliteFactorScoreMetadataAsync();
 
         var existingColumns = await GetTableColumnsAsync("TradeIdeas");
         if (existingColumns.Count == 0)
@@ -62,6 +63,38 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
 
             await Database.ExecuteSqlRawAsync($"ALTER TABLE TradeIdeas ADD COLUMN {columnName} {columnDefinition};");
         }
+    }
+
+    private async Task EnsureSqliteFactorScoreMetadataAsync()
+    {
+        var existingColumns = await GetTableColumnsAsync("FactorScores");
+        if (existingColumns.Count == 0)
+        {
+            return;
+        }
+
+        var columns = new Dictionary<string, string>
+        {
+            [nameof(FactorScore.DataMode)] = "TEXT NOT NULL DEFAULT 'Sample'",
+            [nameof(FactorScore.ScoringModelVersion)] = "TEXT NULL DEFAULT 'sample-v0'",
+            [nameof(FactorScore.SourceObservationCount)] = "INTEGER NOT NULL DEFAULT 0",
+            [nameof(FactorScore.CalculatedAtUtc)] = "TEXT NULL",
+            [nameof(FactorScore.CalculationNotes)] = "TEXT NULL"
+        };
+
+        foreach (var (columnName, columnDefinition) in columns)
+        {
+            if (!existingColumns.Contains(columnName))
+            {
+                await Database.ExecuteSqlRawAsync($"ALTER TABLE FactorScores ADD COLUMN {columnName} {columnDefinition};");
+            }
+        }
+
+        await Database.ExecuteSqlRawAsync("DROP INDEX IF EXISTS IX_FactorScores_MacroFactorId_ScoreDate;");
+        await Database.ExecuteSqlRawAsync("""
+            CREATE UNIQUE INDEX IF NOT EXISTS IX_FactorScores_MacroFactorId_ScoreDate_DataMode_ScoringModelVersion
+            ON FactorScores (MacroFactorId, ScoreDate, DataMode, ScoringModelVersion);
+            """);
     }
 
 
@@ -258,8 +291,16 @@ public sealed class MacroRegimeDbContext(DbContextOptions<MacroRegimeDbContext> 
         {
             entity.Property(score => score.RawScore).HasPrecision(8, 4);
             entity.Property(score => score.WeightedScore).HasPrecision(8, 4);
-            entity.Property(score => score.RegimeImpact).HasMaxLength(80).IsRequired();
-            entity.HasIndex(score => new { score.MacroFactorId, score.ScoreDate }).IsUnique();
+            entity.Property(score => score.RegimeImpact).HasMaxLength(120).IsRequired();
+            entity.Property(score => score.DataMode).HasMaxLength(40).HasDefaultValue("Sample").IsRequired();
+            entity.Property(score => score.ScoringModelVersion).HasMaxLength(80).HasDefaultValue("sample-v0");
+            entity.HasIndex(score => new
+            {
+                score.MacroFactorId,
+                score.ScoreDate,
+                score.DataMode,
+                score.ScoringModelVersion
+            }).IsUnique();
             entity.HasOne(score => score.MacroFactor)
                 .WithMany(factor => factor.Scores)
                 .HasForeignKey(score => score.MacroFactorId)

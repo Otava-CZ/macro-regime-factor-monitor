@@ -29,7 +29,7 @@ Raw data -> measurable factor scores -> macro interpretation -> trade candidates
 - Weekly review page for manual macro notes.
 - Trade idea journal page with fields for thesis, entry trigger, invalidation, catalyst, max loss, time horizon, risk notes, and post-mortem.
 - Startup SQLite schema upgrade that adds v0.3 trade idea columns to existing local `macro-regime.db` files; PostgreSQL uses EF Core migrations.
-- Data Imports admin page for manually testing active `ExternalSeries` mappings without persisting imported observations.
+- Data Imports admin page for manually refreshing active FRED `ExternalSeries` mappings and reviewing persisted observations.
 
 ## Development environment
 
@@ -123,11 +123,11 @@ Historical macro data ingestion is intended to be source-driven rather than copy
 - `DataImportRuns` will audit each import attempt with its source, start/finish timestamps, status, row counts, errors, and notes.
 - `IndicatorObservations` stores normalized observations used by the app and now includes nullable source/import tracking fields for external series, import runs, source names, release dates, vintage dates, and timestamps.
 
-v0.7.3 persists fetched FRED observations into `IndicatorObservations` for existing FRED `ExternalSeries` mappings only. BLS, EIA, and Treasury clients remain placeholders, no API keys or secrets are committed, and dashboard/scoring behavior remains unchanged.
+v0.7.3 persists fetched FRED observations into `IndicatorObservations` for existing FRED `ExternalSeries` mappings only. BLS, EIA, and Treasury clients remain placeholders, no API keys or secrets are committed, and dashboard scoring remains unchanged until the separate manual scoring action is run.
 
 ## Initial FRED series mappings
 
-v0.7.0 seeds only the first reviewed FRED `ExternalSeries` mappings for current macro indicators. v0.7.3 can fetch observations for these mappings through the import service when a FRED API key is configured and persist them to `IndicatorObservations`, but it still does not import history into scoring or change dashboard/scoring behavior.
+v0.7.0 seeds only the first reviewed FRED `ExternalSeries` mappings for current macro indicators. v0.7.3 can fetch observations for these mappings through the import service when a FRED API key is configured and persist them to `IndicatorObservations`, but imports still do not automatically recalculate scoring or change dashboard behavior.
 
 | Indicator | FRED series | Endpoint | Frequency | Units | Transform |
 | --- | --- | --- | --- | --- | --- |
@@ -157,7 +157,7 @@ v0.7.3 updates the controlled **Data Imports** admin page at `/imports` for manu
 
 FRED imports can be tested from this page when `Fred:ApiKey` is configured outside source control. Each attempt writes a `DataImportRun` with timestamps, status, row counts, notes, and any error message so import behavior can be reviewed without changing scoring.
 
-v0.7.3 persists fetched observations into `IndicatorObservations`. Existing observations with the same `IndicatorId` and `ObservationDate` are skipped by default, so seeded/sample observations are not overwritten during normal manual imports. `ForceRefresh` controls overwrites when exposed or used, and it defaults to false in the admin UI. The dashboard continues to use the current persisted `FactorScores`, imported observations are not yet converted into `FactorScores` automatically, and scoring behavior remains unchanged.
+v0.7.3 persists fetched observations into `IndicatorObservations`. Existing observations with the same `IndicatorId` and `ObservationDate` are skipped by default, so seeded/sample observations are not overwritten during normal manual imports. `ForceRefresh` controls overwrites when exposed or used, and it defaults to false in the admin UI. The dashboard continues to use the current persisted `FactorScores` until the separate manual scoring action is run; imported observations are not converted into `FactorScores` automatically.
 
 ## Operational manual refresh
 
@@ -224,3 +224,18 @@ The app still computes a secondary composite regime label for continuity, but th
 ## Continuous integration
 
 The repository includes one GitHub Actions workflow that restores and builds the .NET 8 solution on pushes and pull requests targeting `develop` or `main`.
+
+## Manual imported-data scoring
+
+v0.8.0 adds the first manual bridge from imported FRED observations to `FactorScores`. After importing observations, use the **Scoring** admin page to run **Recalculate current scores from imported observations** for a selected `ScoreDate` (default: today in UTC). The recalculation uses the latest imported observation on or before that score date and writes `DataMode = ImportedManual` scores with `ScoringModelVersion = imported-manual-v0.8.0`.
+
+Important caveats:
+
+- This is deliberately simple placeholder scoring, not production-quality macro scoring or investment advice.
+- Only existing imported FRED mappings are used: `CPILFESL` for Inflation Pressure, `DGS10` for Fiscal/Treasury Stress, and `VIXCLS` for Market Complacency.
+- `DGS10` is only a rough Treasury-rate proxy; it is not true fiscal stress or a true term-premium model.
+- Inflation Breadth, Energy Shock, and Growth Stress are not mapped yet, so manual scoring creates explicit neutral placeholders with `SourceObservationCount = 0`.
+- Scoring does not run automatically on startup, on a schedule, or after imports. Imports never automatically recalculate scores.
+- No broker integration, automatic trading, `TradeIdea` automation, or hidden background scoring jobs are included.
+- The dashboard labels whether it is displaying `Sample`, `ImportedManual`, or mixed data modes and prefers `ImportedManual` scores when they exist for the latest displayed score date.
+- Scheduled jobs remain deferred.

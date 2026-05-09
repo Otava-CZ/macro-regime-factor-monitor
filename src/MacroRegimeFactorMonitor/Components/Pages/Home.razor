@@ -16,6 +16,16 @@ else if (snapshot.FactorScores.Count == 0)
 }
 else
 {
+    <section class="message @DataModeBannerCss">
+        <strong>@DataModeBannerText</strong>
+        <div>Latest ScoreDate: @snapshot.AsOfDate.ToString("yyyy-MM-dd")</div>
+        <div>DataMode: @snapshot.DataMode</div>
+        @if (!string.IsNullOrWhiteSpace(snapshot.ScoringModelVersion))
+        {
+            <div>ScoringModelVersion: @snapshot.ScoringModelVersion</div>
+        }
+    </section>
+
     <section class="summary-grid">
         <div class="metric-card">
             <span>As of</span>
@@ -72,7 +82,7 @@ else
             <tbody>
                 @foreach (var score in snapshot.FactorScores)
                 {
-                    var pressureContribution = FactorScoreCalculator.CalculatePressureContribution(score.WeightedScore, score.MacroFactor?.Name);
+                    var pressureContribution = FactorScoreCalculator.CalculatePressureContribution(score);
 
                     <tr>
                         <td>@score.MacroFactor?.Name</td>
@@ -105,6 +115,52 @@ else
 
 @code {
     private DashboardSnapshot? snapshot;
+
+    private string DataModeBannerText
+    {
+        get
+        {
+            if (snapshot is null)
+            {
+                return string.Empty;
+            }
+
+            var modes = snapshot.FactorScores
+                .Select(score => score.DataMode)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (modes.Count == 1 && string.Equals(modes[0], "Sample", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Dashboard is showing sample/seed scores. Imported observations are not currently driving this view.";
+            }
+
+            if (modes.Count == 1 && string.Equals(modes[0], ImportedObservationScoringService.ImportedManualDataMode, StringComparison.OrdinalIgnoreCase))
+            {
+                return "Dashboard is showing manually calculated scores from imported observations.";
+            }
+
+            return "Dashboard is showing mixed score data modes. Interpret carefully.";
+        }
+    }
+
+    private string DataModeBannerCss
+    {
+        get
+        {
+            if (snapshot is null)
+            {
+                return "warning";
+            }
+
+            var modeCount = snapshot.FactorScores
+                .Select(score => score.DataMode)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
+
+            return modeCount == 1 ? "warning" : "error";
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
