@@ -52,7 +52,9 @@ public sealed class ObservationImportService(
             var warnings = new List<string>();
             var rowsInserted = 0;
             var rowsUpdated = 0;
-            var rowsSkipped = 0;
+            var skippedExistingCount = 0;
+            var skippedInvalidCount = 0;
+            var skippedDuplicateFetchedDateCount = 0;
             var now = DateTime.UtcNow;
             var processedObservationDates = new HashSet<DateOnly>();
 
@@ -69,16 +71,15 @@ public sealed class ObservationImportService(
 
             foreach (var observation in observations)
             {
-                if (!IsValidObservation(observation, externalSeries, warnings))
+                if (!IsValidObservation(observation, externalSeries))
                 {
-                    rowsSkipped++;
+                    skippedInvalidCount++;
                     continue;
                 }
 
                 if (!processedObservationDates.Add(observation.ObservationDate))
                 {
-                    warnings.Add($"Skipped duplicate fetched observation dated {observation.ObservationDate:yyyy-MM-dd} for external series {externalSeries.ExternalSeriesId}.");
-                    rowsSkipped++;
+                    skippedDuplicateFetchedDateCount++;
                     continue;
                 }
 
@@ -106,7 +107,7 @@ public sealed class ObservationImportService(
 
                 if (!request.ForceRefresh)
                 {
-                    rowsSkipped++;
+                    skippedExistingCount++;
                     continue;
                 }
 
@@ -120,9 +121,21 @@ public sealed class ObservationImportService(
                 rowsUpdated++;
             }
 
-            if (rowsSkipped > 0)
+            var rowsSkipped = skippedExistingCount + skippedInvalidCount + skippedDuplicateFetchedDateCount;
+
+            if (skippedExistingCount > 0)
             {
-                warnings.Add("Some observations already existed and were skipped because ForceRefresh is false.");
+                warnings.Add($"{skippedExistingCount} existing observations were skipped because ForceRefresh is false.");
+            }
+
+            if (skippedInvalidCount > 0)
+            {
+                warnings.Add($"{skippedInvalidCount} invalid observations were skipped.");
+            }
+
+            if (skippedDuplicateFetchedDateCount > 0)
+            {
+                warnings.Add($"{skippedDuplicateFetchedDateCount} duplicate fetched observations were skipped.");
             }
 
             if (rowsInserted + rowsUpdated == 0)
@@ -166,24 +179,20 @@ public sealed class ObservationImportService(
 
     private static bool IsValidObservation(
         ImportObservationDto observation,
-        ExternalSeries externalSeries,
-        List<string> warnings)
+        ExternalSeries externalSeries)
     {
         if (observation.ObservationDate == default || observation.ObservationDate == DateOnly.MinValue)
         {
-            warnings.Add($"Skipped observation for external series {externalSeries.ExternalSeriesId} because the observation date was not valid.");
             return false;
         }
 
         if (!string.Equals(observation.ExternalSeriesId, externalSeries.ExternalSeriesId, StringComparison.Ordinal))
         {
-            warnings.Add($"Skipped observation dated {observation.ObservationDate:yyyy-MM-dd} because external series id '{observation.ExternalSeriesId}' did not match expected '{externalSeries.ExternalSeriesId}'.");
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(observation.Source))
         {
-            warnings.Add($"Skipped observation dated {observation.ObservationDate:yyyy-MM-dd} for external series {externalSeries.ExternalSeriesId} because the source was blank.");
             return false;
         }
 

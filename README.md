@@ -149,6 +149,8 @@ dotnet user-secrets set "Fred:ApiKey" "<your-fred-api-key>" --project .\src\Macr
 
 The default FRED base URL is `https://api.stlouisfed.org/fred`. You normally do not need to override it, but if needed you can set `Fred:BaseUrl` through user secrets or environment variables. No real FRED API key should be committed to `appsettings.json` or any other tracked file.
 
+FRED requires the API key to be sent as the `api_key` query parameter on API requests. The app suppresses `System.Net.Http.HttpClient` informational request/response logging so framework logs do not write full FRED request URLs, including query-string secrets, while application warnings and errors remain enabled.
+
 ## Manual import testing
 
 v0.7.3 updates the controlled **Data Imports** admin page at `/imports` for manually testing existing `ExternalSeries` mappings through the app. The page lists active mappings, provides optional from/to date filters, and can trigger the import service for one mapping at a time.
@@ -156,6 +158,16 @@ v0.7.3 updates the controlled **Data Imports** admin page at `/imports` for manu
 FRED imports can be tested from this page when `Fred:ApiKey` is configured outside source control. Each attempt writes a `DataImportRun` with timestamps, status, row counts, notes, and any error message so import behavior can be reviewed without changing scoring.
 
 v0.7.3 persists fetched observations into `IndicatorObservations`. Existing observations with the same `IndicatorId` and `ObservationDate` are skipped by default, so seeded/sample observations are not overwritten during normal manual imports. `ForceRefresh` controls overwrites when exposed or used, and it defaults to false in the admin UI. The dashboard continues to use the current persisted `FactorScores`, imported observations are not yet converted into `FactorScores` automatically, and scoring behavior remains unchanged.
+
+## Operational manual refresh
+
+v0.7.4 keeps all import activity manually controlled from the **Data Imports** admin page at `/imports`. Operators can refresh one active `ExternalSeries` with explicit from/to dates or click **Refresh all active FRED series** to sequentially refresh every active FRED mapping (`CPILFESL`, `VIXCLS`, and `DGS10` when seeded and active). No scheduled Quartz job is registered, no import runs automatically on app startup, and no API keys or secrets are displayed or stored in source control.
+
+The refresh-all action calculates overlap windows by frequency before each per-series import: daily series re-fetch from the latest persisted observation date minus 7 days, monthly series re-fetch from the latest persisted observation date minus 6 months, unknown frequencies re-fetch from the latest persisted observation date minus 30 days, and series with no persisted observations default to the last 2 years. Refresh-all always uses `ForceRefresh = true` so overlap windows can capture revised FRED values. Each series is attempted independently; a failed series is reported but does not stop later series.
+
+The `/imports` page now shows informational freshness badges for each external series based on the latest persisted `IndicatorObservations` row: daily series are fresh within 5 calendar days, monthly series within 45 calendar days, unknown frequencies within 14 calendar days, and series without observations are marked missing. These badges are display-only and do not block imports. The page also shows a read-only recent observation history table so operators can inspect persisted observations and their `DataImportRun` links.
+
+Dashboard and scoring behavior remain unchanged in v0.7.4. Imported observations are not automatically converted into `FactorScores`, there is no automatic `FactorScore` recalculation, and Quartz scheduled refresh remains intentionally deferred.
 
 ## Import architecture
 
