@@ -63,9 +63,27 @@ static void ConfigureMiddleware(WebApplication app)
 
 static async Task RunStartupSyncAsync(WebApplication app)
 {
-    await using var scope = app.Services.CreateAsyncScope();
-    var startupSync = scope.ServiceProvider.GetRequiredService<StartupSyncService>();
-    await startupSync.RunAsync();
+    var failFast = app.Configuration.GetValue("StartupSync:FailFast", app.Environment.IsDevelopment());
+
+    try
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var startupSync = scope.ServiceProvider.GetRequiredService<StartupSyncService>();
+        await startupSync.RunAsync();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(
+            ex,
+            "Startup sync failed. FailFast={FailFast}. The application will {StartupBehavior}.",
+            failFast,
+            failFast ? "stop" : "continue running in degraded mode");
+
+        if (failFast)
+        {
+            throw;
+        }
+    }
 }
 
 static void LogSafeStartupConfiguration(WebApplication app)
@@ -83,6 +101,14 @@ static void LogSafeStartupConfiguration(WebApplication app)
 
 static void MapEndpoints(WebApplication app)
 {
+    app.MapGet("/ping", () => Results.Ok(new
+    {
+        status = "Running",
+        appName = "MacroRegimeFactorMonitor",
+        environment = app.Environment.EnvironmentName,
+        utcNow = DateTimeOffset.UtcNow
+    }));
+
     app.MapGet("/health", async (AppConfigurationDiagnosticsService diagnostics, CancellationToken cancellationToken) =>
     {
         var health = await diagnostics.GetHealthAsync(cancellationToken);
