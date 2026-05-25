@@ -1,0 +1,99 @@
+name: Diagnose Azure App Service POC
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_WEBAPP_NAME: macro-regime-monitor-poc
+  AZURE_RESOURCE_GROUP: macro-regime-monitor-poc_group
+  AZURE_HEALTH_URL: https://macro-regime-monitor-poc-gyh8gf7dugdh2.westeurope-01.azurewebsites.net
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_2D055B8012F24E55B683BEED196A6F5F }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_33C879FD48E24E3E93F04D84CB5981F4 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_0F128B72E9B9421CA42EB9A6021925F2 }}
+
+      - name: Show Azure account context
+        run: |
+          az account show --query "{subscriptionId:id, tenantId:tenantId, name:name}" --output table
+
+      - name: Show Web App state and runtime
+        run: |
+          az webapp show \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query "{name:name,state:state,defaultHostName:defaultHostName,enabled:enabled,kind:kind,linuxFxVersion:siteConfig.linuxFxVersion,alwaysOn:siteConfig.alwaysOn,httpsOnly:httpsOnly}" \
+            --output json
+
+      - name: Show safe app setting names only
+        run: |
+          az webapp config appsettings list \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query "[].name" \
+            --output table
+
+      - name: Apply non-secret diagnostic startup settings
+        run: |
+          az webapp config appsettings set \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --settings \
+              ASPNETCORE_URLS="http://+:8080" \
+              WEBSITES_PORT="8080" \
+              StartupSync__FailFast="false"
+
+      - name: Enable filesystem logging
+        run: |
+          az webapp log config \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --application-logging filesystem \
+            --level information \
+            --web-server-logging filesystem \
+            --detailed-error-messages true \
+            --failed-request-tracing true
+
+      - name: Restart Web App
+        run: |
+          az webapp restart \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP"
+          sleep 45
+
+      - name: Probe endpoints
+        continue-on-error: true
+        run: |
+          set -x
+          curl -i --max-time 30 "$AZURE_HEALTH_URL/"
+          curl -i --max-time 30 "$AZURE_HEALTH_URL/ping"
+          curl -i --max-time 30 "$AZURE_HEALTH_URL/health"
+          curl -i --max-time 30 "$AZURE_HEALTH_URL/ready"
+
+      - name: Download recent log files
+        continue-on-error: true
+        run: |
+          mkdir -p azure-log-dump
+          az webapp log download \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --log-file azure-log-dump/logs.zip
+          ls -la azure-log-dump
+
+      - name: Upload Azure log dump artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: azure-log-dump
+          path: azure-log-dump
