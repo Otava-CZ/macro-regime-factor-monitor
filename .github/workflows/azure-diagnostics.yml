@@ -10,7 +10,6 @@ permissions:
 env:
   AZURE_WEBAPP_NAME: macro-regime-monitor-poc
   AZURE_RESOURCE_GROUP: macro-regime-monitor-poc_group
-  AZURE_HEALTH_URL: https://macro-regime-monitor-poc-gyh8gf7dugdh2.westeurope-01.azurewebsites.net
 
 jobs:
   diagnose:
@@ -29,12 +28,29 @@ jobs:
           az account show --query "{subscriptionId:id, tenantId:tenantId, name:name}" --output table
 
       - name: Show Web App state and runtime
+        id: app_state
         run: |
           az webapp show \
             --name "$AZURE_WEBAPP_NAME" \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --query "{name:name,state:state,defaultHostName:defaultHostName,enabled:enabled,kind:kind,linuxFxVersion:siteConfig.linuxFxVersion,alwaysOn:siteConfig.alwaysOn,httpsOnly:httpsOnly}" \
             --output json
+
+          DEFAULT_HOSTNAME=$(az webapp show \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query "defaultHostName" \
+            --output tsv)
+
+          APP_STATE=$(az webapp show \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query "state" \
+            --output tsv)
+
+          echo "DEFAULT_HOSTNAME=$DEFAULT_HOSTNAME" >> "$GITHUB_ENV"
+          echo "AZURE_HEALTH_URL=https://$DEFAULT_HOSTNAME" >> "$GITHUB_ENV"
+          echo "APP_STATE=$APP_STATE" >> "$GITHUB_ENV"
 
       - name: Show safe app setting names only
         run: |
@@ -75,6 +91,8 @@ jobs:
       - name: Probe endpoints
         continue-on-error: true
         run: |
+          echo "Resolved Azure URL: $AZURE_HEALTH_URL"
+          echo "App state before restart/probe was: $APP_STATE"
           set -x
           curl -i --max-time 30 "$AZURE_HEALTH_URL/"
           curl -i --max-time 30 "$AZURE_HEALTH_URL/ping"
