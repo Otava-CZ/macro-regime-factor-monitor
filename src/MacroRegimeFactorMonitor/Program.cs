@@ -219,12 +219,13 @@ static class TemporaryAccessGateMiddlewareExtensions
         var query = new QueryBuilder(
             context.Request.Query
                 .Where(parameter => !string.Equals(parameter.Key, AccessTokenQueryKey, StringComparison.OrdinalIgnoreCase))
-                .SelectMany(parameter => parameter.Value.Select(value => new KeyValuePair<string, string?>(parameter.Key, value))));
+                .SelectMany(parameter => parameter.Value
+                    .Where(value => value is not null)
+                    .Select(value => new KeyValuePair<string, string>(parameter.Key, value!))));
 
         return UriHelper.BuildRelative(
             context.Request.PathBase,
             context.Request.Path,
-            query.ToQueryString(),
-            context.Request.Fragment);
+            query.ToQueryString());
     }
 }
