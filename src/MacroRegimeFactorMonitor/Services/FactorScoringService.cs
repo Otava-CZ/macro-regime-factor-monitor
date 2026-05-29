@@ -9,29 +9,37 @@ public sealed class FactorScoringService(IDbContextFactory<MacroRegimeDbContext>
     public async Task<DashboardSnapshot> GetLatestSnapshotAsync()
     {
         await using var db = await dbFactory.CreateDbContextAsync();
-        var latestDate = await db.FactorScores.MaxAsync(score => (DateOnly?)score.ScoreDate);
-        if (latestDate is null)
+
+        var latestImportedManualDate = await db.FactorScores
+            .AsNoTracking()
+            .Where(score => score.DataMode == ImportedObservationScoringService.ImportedManualDataMode)
+            .MaxAsync(score => (DateOnly?)score.ScoreDate);
+        var preferredDataMode = latestImportedManualDate.HasValue
+            ? ImportedObservationScoringService.ImportedManualDataMode
+            : "Sample";
+        var selectedDate = latestImportedManualDate
+            ?? await db.FactorScores
+                .AsNoTracking()
+                .Where(score => score.DataMode == preferredDataMode)
+                .MaxAsync(score => (DateOnly?)score.ScoreDate);
+
+        if (selectedDate is null)
         {
             return DashboardSnapshot.Empty;
         }
 
-        var latestDateScores = await db.FactorScores
+        var selectedDateScores = await db.FactorScores
             .AsNoTracking()
             .Include(score => score.MacroFactor)
-            .Where(score => score.ScoreDate == latestDate)
+            .Where(score => score.ScoreDate == selectedDate && score.DataMode == preferredDataMode)
             .ToListAsync();
 
-        var preferredDataMode = latestDateScores.Any(score => score.DataMode == ImportedObservationScoringService.ImportedManualDataMode)
-            ? ImportedObservationScoringService.ImportedManualDataMode
-            : "Sample";
         var preferredVersion = preferredDataMode == ImportedObservationScoringService.ImportedManualDataMode
-            ? ImportedObservationScoringService.SelectPreferredImportedManualVersion(latestDateScores
-                .Where(score => score.DataMode == preferredDataMode)
+            ? ImportedObservationScoringService.SelectPreferredImportedManualVersion(selectedDateScores
                 .Select(score => score.ScoringModelVersion))
             : null;
-        var scores = latestDateScores
-            .Where(score => score.DataMode == preferredDataMode
-                && (preferredVersion is null || score.ScoringModelVersion == preferredVersion))
+        var scores = selectedDateScores
+            .Where(score => preferredVersion is null || score.ScoringModelVersion == preferredVersion)
             .OrderBy(score => score.MacroFactor!.Name)
             .ToList();
         var dataModes = scores
@@ -55,7 +63,7 @@ public sealed class FactorScoringService(IDbContextFactory<MacroRegimeDbContext>
         var macroInterpretations = MacroInterpretationScoring.Build(scores);
 
         return new DashboardSnapshot(
-            latestDate.Value,
+            selectedDate.Value,
             compositeScore,
             macroInterpretations.FirstOrDefault()?.Reading ?? "No dominant macro interpretation",
             FactorScoreCalculator.ClassifyRegime(compositeScore),

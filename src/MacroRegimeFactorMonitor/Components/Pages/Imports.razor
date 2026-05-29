@@ -1,10 +1,25 @@
 @page "/imports"
 @inject ImportAdminService ImportAdminService
+@inject AppConfigurationDiagnosticsService DiagnosticsService
 
 <PageTitle>Data Imports</PageTitle>
 
 <h1>Data Imports</h1>
 <p class="lede">Run controlled, manual imports for existing external series mappings. Fetched observations are persisted to IndicatorObservations; score recalculation remains a separate manual action on the Scoring page.</p>
+
+@if (configurationSnapshot is not null)
+{
+    <section class="card compact-card">
+        <strong>FRED status:</strong> @(configurationSnapshot.FredApiKeyConfigured ? "Fred__ApiKey is configured; manual FRED imports are enabled." : "Fred__ApiKey is missing. Configure it before running manual FRED imports.")
+    </section>
+}
+
+@if (!string.IsNullOrWhiteSpace(pageError))
+{
+    <section class="message error">
+        <strong>Import page warning:</strong> @pageError
+    </section>
+}
 
 <section class="card">
     <div class="section-heading">
@@ -19,7 +34,7 @@
     </div>
 
     <div class="action-row">
-        <button type="button" disabled="@IsBusy" @onclick="RefreshAllActiveFredSeriesAsync">
+        <button type="button" disabled="@(IsBusy || !IsFredConfigured)" @onclick="RefreshAllActiveFredSeriesAsync">
             @(isBatchRunning ? "Refreshing active FRED series..." : "Refresh all active FRED series")
         </button>
         <span class="section-note">Manual only. Uses overlap windows and ForceRefresh to catch revised FRED observations.</span>
@@ -86,7 +101,7 @@
                                             <InputCheckbox @bind-Value="series.ForceRefresh" disabled="@IsBusy" />
                                             Force refresh existing observations
                                         </label>
-                                        <button type="button" disabled="@IsBusy" @onclick="() => RunImportAsync(series)">
+                                        <button type="button" disabled="@(IsBusy || IsFredImportDisabled(series))" @onclick="() => RunImportAsync(series)">
                                             @(isImportRunning ? "Import running..." : "Run import")
                                         </button>
                                     </div>
@@ -323,10 +338,13 @@
     private List<ExternalSeriesAdminRow>? externalSeries;
     private List<DataImportRunAdminRow>? recentRuns;
     private List<ImportedObservationAdminRow>? recentObservations;
+    private AppConfigurationDiagnosticsSnapshot? configurationSnapshot;
     private ImportSeriesResult? latestResult;
     private ImportBatchResult? latestBatchResult;
+    private string? pageError;
 
     private bool IsBusy => isImportRunning || isBatchRunning;
+    private bool IsFredConfigured => configurationSnapshot?.FredApiKeyConfigured == true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -335,6 +353,7 @@
 
     private async Task LoadPageDataAsync()
     {
+        configurationSnapshot = DiagnosticsService.GetSnapshot();
         await LoadExternalSeriesAsync();
         await LoadRecentObservationsAsync();
         await LoadRecentRunsAsync();
@@ -342,17 +361,41 @@
 
     private async Task LoadExternalSeriesAsync()
     {
-        externalSeries = await ImportAdminService.GetExternalSeriesAsync(includeInactive);
+        try
+        {
+            externalSeries = await ImportAdminService.GetExternalSeriesAsync(includeInactive);
+        }
+        catch (Exception exception)
+        {
+            pageError = ImportAdminService.CreateSafeErrorSummary(exception);
+            externalSeries = [];
+        }
     }
 
     private async Task LoadRecentRunsAsync()
     {
-        recentRuns = await ImportAdminService.GetRecentImportRunsAsync();
+        try
+        {
+            recentRuns = await ImportAdminService.GetRecentImportRunsAsync();
+        }
+        catch (Exception exception)
+        {
+            pageError = ImportAdminService.CreateSafeErrorSummary(exception);
+            recentRuns = [];
+        }
     }
 
     private async Task LoadRecentObservationsAsync()
     {
-        recentObservations = await ImportAdminService.GetRecentObservationsAsync(selectedObservationExternalSeriesId);
+        try
+        {
+            recentObservations = await ImportAdminService.GetRecentObservationsAsync(selectedObservationExternalSeriesId);
+        }
+        catch (Exception exception)
+        {
+            pageError = ImportAdminService.CreateSafeErrorSummary(exception);
+            recentObservations = [];
+        }
     }
 
     private async Task RunImportAsync(ExternalSeriesAdminRow series)
@@ -361,6 +404,7 @@
         latestBatchResult = null;
         try
         {
+            pageError = null;
             latestResult = await ImportAdminService.RunImportAsync(new ImportSeriesRequest
             {
                 ExternalSeriesId = series.Id,
@@ -370,6 +414,14 @@
             });
 
             await LoadPageDataAsync();
+        }
+        catch (Exception exception)
+        {
+            latestResult = new ImportSeriesResult
+            {
+                Status = "Failed",
+                ErrorMessage = ImportAdminService.CreateSafeErrorSummary(exception)
+            };
         }
         finally
         {
@@ -383,8 +435,19 @@
         latestResult = null;
         try
         {
+            pageError = null;
             latestBatchResult = await ImportAdminService.RefreshAllActiveFredSeriesAsync();
             await LoadPageDataAsync();
+        }
+        catch (Exception exception)
+        {
+            latestBatchResult = new ImportBatchResult
+            {
+                StartedAtUtc = DateTime.UtcNow,
+                FinishedAtUtc = DateTime.UtcNow,
+                Status = "Failed"
+            };
+            pageError = ImportAdminService.CreateSafeErrorSummary(exception);
         }
         finally
         {
@@ -403,6 +466,9 @@
     private static string FormatDays(int? value) => value.HasValue ? value.Value.ToString() : "—";
 
     private static string FormatNullableInt(int? value) => value.HasValue ? value.Value.ToString() : "—";
+
+    private bool IsFredImportDisabled(ExternalSeriesAdminRow series) =>
+        string.Equals(series.DataSourceName, "FRED", StringComparison.OrdinalIgnoreCase) && !IsFredConfigured;
 
     private static string FreshnessCssClass(string status) => status switch
     {

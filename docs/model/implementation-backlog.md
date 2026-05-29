@@ -110,6 +110,15 @@ Tasks:
 - Store `ImportedManual` scores with explicit scoring model version.
 - Prefer `ImportedManual` over `Sample` when available.
 - Show source observation dates and data quality status in dashboard/snapshot.
+- Keep SQLite as a non-blocking warning for the Render Free prototype.
+
+Manual prototype flow:
+1. Configure `Fred__ApiKey` in Render environment variables.
+2. Open `/imports`.
+3. Run manual FRED imports for active configured series.
+4. Open `/scoring`.
+5. Run manual scoring to create `ImportedManual` factor scores.
+6. Verify `/api/model/snapshot` and the dashboard select `ImportedManual`.
 
 Acceptance:
 - After manual workflow, snapshot shows `dataMode = ImportedManual`.
