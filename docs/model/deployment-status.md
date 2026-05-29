@@ -51,6 +51,7 @@ Current synchronization note:
 - Dockerfile exists in repo root.
 - Temporary access token gate was removed from `main`.
 - `/api/model/snapshot` is deployed and returns safe model/deployment diagnostics.
+- `/api/model/snapshot` now includes an `operationalState` section with production-data readiness, blocking reasons, and next actions while keeping existing snapshot fields backward-compatible.
 
 Relevant removal commits:
 - `ed4e89877a841ccadeb52aa72582fbae2c1ad459` — Remove temporary access token gate.
@@ -65,7 +66,7 @@ Recommended service settings:
 - Health check path: `/ping`
 - Instance: Free
 
-Recommended environment variables:
+Recommended base environment variables:
 
 ```text
 ASPNETCORE_ENVIRONMENT=Production
@@ -85,14 +86,15 @@ Render__DeployId=<deploy id>
 
 These values are not secrets. If Render exposes equivalent `RENDER_*` or `GIT_*` variables, the app will read those automatically as well.
 
-When production-like data is enabled:
+Required Render variables for the current SQLite-backed imported/manual operation:
 
 ```text
-Database__Provider=Postgres
-ConnectionStrings__MacroRegime=<Supabase session-pooler connection string>
 Fred__ApiKey=<FRED API key>
 Fred__BaseUrl=https://api.stlouisfed.org/fred
+StartupSync__FailFast=false
 ```
+
+SQLite is acceptable for the current Render Free early prototype. `Database__Provider=Postgres` and `ConnectionStrings__MacroRegime=<Supabase session-pooler connection string>` are future durability-upgrade settings, not prerequisites for validating the import/manual-scoring loop. Secrets such as the Supabase session-pooler connection string and FRED API key must be configured only in Render environment variables. Do not commit secrets to source, docs, examples, logs, UI output, or snapshot JSON.
 
 Obsolete variables after token removal:
 
@@ -156,10 +158,16 @@ Current confirmed state from live `/api/model/snapshot` after PR `#62`:
 - Composite regime: Defensive Slowdown
 
 Next Render configuration step for production-like data:
-- move to Supabase/Postgres connection string,
-- configure FRED API key,
+- keep the current Render Free SQLite storage mode for the early prototype if it is working,
+- set `Fred__ApiKey=<FRED API key>`,
+- set `Fred__BaseUrl=https://api.stlouisfed.org/fred`,
+- keep `StartupSync__FailFast=false`,
 - run manual import/scoring workflow,
-- verify snapshot reports `ImportedManual` instead of `Sample`.
+- verify snapshot `operationalState.productionDataReady` is `true` and reports `ImportedManual` instead of `Sample`.
+
+SQLite in Production is a known current storage-mode limitation, not a hard blocker for the Render Free import/manual-scoring loop. Supabase/Postgres remains the future durability upgrade, but Postgres is not required before validating imports and manual scoring.
+
+The snapshot and System page should represent missing FRED/import/scoring prerequisites as blocking reasons or warnings, not exceptions, and must never display the actual API key or database connection string.
 
 ## MonsterASP.NET note
 

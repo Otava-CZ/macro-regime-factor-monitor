@@ -30,14 +30,17 @@ public sealed class ModelSnapshotService(
         DashboardSnapshot dashboard = DashboardSnapshot.Empty;
         IReadOnlyList<ModelSnapshotTradeCandidate> tradeCandidates = [];
         ModelSnapshotImportStatus? latestImport = null;
+        ModelSnapshotImportStatus? latestSuccessfulImport = null;
+        IReadOnlyList<ModelSnapshotImportStatus> latestImportsByDataSource = [];
         ModelSnapshotScoringStatus? latestScoring = null;
+        ModelSnapshotScoringVisibility scoringVisibility = ModelSnapshotScoringVisibility.Empty;
 
         if (database.IsReachable)
         {
             dashboard = await factorScoringService.GetLatestSnapshotAsync();
 
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
-            latestImport = await db.DataImportRuns
+            var importRuns = await db.DataImportRuns
                 .AsNoTracking()
                 .Include(run => run.DataSource)
                 .OrderByDescending(run => run.StartedAtUtc)
@@ -52,7 +55,47 @@ public sealed class ModelSnapshotService(
                     run.RowsUpdated,
                     string.IsNullOrWhiteSpace(run.ErrorMessage) ? null : "Import recorded an error; review server logs or the imports page for details.",
                     run.Notes))
-                .FirstOrDefaultAsync(cancellationToken);
+                .ToListAsync(cancellationToken);
+
+            latestImport = importRuns.FirstOrDefault();
+            latestSuccessfulImport = importRuns.FirstOrDefault(run => IsSuccessfulImportStatus(run.Status));
+            latestImportsByDataSource = importRuns
+                .GroupBy(run => run.DataSource, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .OrderBy(run => run.DataSource)
+                .ToList();
+
+            var scoreDates = await db.FactorScores
+                .AsNoTracking()
+                .Select(score => new
+                {
+                    score.DataMode,
+                    score.ScoreDate
+                })
+                .ToListAsync(cancellationToken);
+
+            var latestScoreDatesByDataMode = scoreDates
+                .GroupBy(score => score.DataMode, StringComparer.OrdinalIgnoreCase)
+                .Select(group => new ModelSnapshotScoreDateByDataMode(
+                    group.Key,
+                    group.Max(score => score.ScoreDate),
+                    group.Count()))
+                .OrderBy(score => score.DataMode)
+                .ToList();
+
+            var latestSampleScoreDate = latestScoreDatesByDataMode
+                .FirstOrDefault(score => IsDataMode(score.DataMode, "Sample"))
+                ?.LatestScoreDate;
+            var latestImportedManualScoreDate = latestScoreDatesByDataMode
+                .FirstOrDefault(score => IsDataMode(score.DataMode, "ImportedManual"))
+                ?.LatestScoreDate;
+
+            scoringVisibility = new ModelSnapshotScoringVisibility(
+                latestScoreDatesByDataMode,
+                latestSampleScoreDate,
+                latestImportedManualScoreDate,
+                dashboard.DataMode,
+                dashboard.AsOfDate == DateOnly.MinValue ? null : dashboard.AsOfDate);
 
             latestScoring = dashboard.AsOfDate == DateOnly.MinValue
                 ? null
@@ -123,6 +166,15 @@ public sealed class ModelSnapshotService(
             openQuestions.Add("Dashboard is using sample scores; run imports and manual scoring before treating the snapshot as current data.");
         }
 
+        var operationalState = BuildOperationalState(
+            configurationSnapshot,
+            database,
+            readiness,
+            dashboard.DataMode,
+            latestImport,
+            latestSuccessfulImport,
+            scoringVisibility.LatestImportedManualScoreDate);
+
         return new ModelSnapshotResponse(
             DateTimeOffset.UtcNow,
             deployment,
@@ -159,9 +211,102 @@ public sealed class ModelSnapshotService(
                 .ToList(),
             latestImport,
             latestScoring,
+            latestSuccessfulImport,
+            latestImportsByDataSource,
+            scoringVisibility,
+            operationalState,
             tradeCandidates,
             warnings.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(warning => warning).ToList(),
             openQuestions.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(question => question).ToList());
+    }
+
+    private static ModelSnapshotOperationalState BuildOperationalState(
+        AppConfigurationDiagnosticsSnapshot configurationSnapshot,
+        DatabaseReachabilityResult database,
+        ReadinessResponse readiness,
+        string dataMode,
+        ModelSnapshotImportStatus? latestImport,
+        ModelSnapshotImportStatus? latestSuccessfulImport,
+        DateOnly? latestImportedManualScoreDate)
+    {
+        var isUsingSampleData = IsDataMode(dataMode, "Sample");
+        var isUsingImportedManualData = IsDataMode(dataMode, "ImportedManual");
+        var blockingReasons = new List<string>();
+        var nonBlockingWarnings = new List<string>();
+        var nextActions = new List<string>();
+
+        if (!database.IsReachable)
+        {
+            blockingReasons.Add($"Database is unavailable: {database.Message}");
+            nextActions.Add("Fix the configured database connection and re-check /ready.");
+        }
+
+        if (isUsingSampleData)
+        {
+            blockingReasons.Add("DataMode is Sample, so the snapshot is not using production imported/manual-scored data.");
+            nextActions.Add("Run imports and manual scoring until the dashboard-selected score mode is ImportedManual.");
+        }
+
+        if (!configurationSnapshot.FredApiKeyConfigured)
+        {
+            blockingReasons.Add("Fred:ApiKey is missing; FRED imports are not configured.");
+            nextActions.Add("Configure Fred__ApiKey in Render environment variables only.");
+        }
+
+        if (latestImport is null)
+        {
+            blockingReasons.Add("No import run has been recorded yet.");
+            nextActions.Add("Run the import workflow and confirm an import run is recorded.");
+        }
+        else if (latestSuccessfulImport is null)
+        {
+            blockingReasons.Add("No successful import run has been recorded yet.");
+            nextActions.Add("Review the imports page and server logs, then rerun imports until one completes successfully.");
+        }
+
+        if (latestImportedManualScoreDate is null)
+        {
+            blockingReasons.Add("No ImportedManual scores have been recorded yet.");
+            nextActions.Add("Run manual scoring after imports complete successfully.");
+        }
+
+        if (configurationSnapshot.Environment.Equals("Production", StringComparison.OrdinalIgnoreCase)
+            && configurationSnapshot.DatabaseProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+        {
+            nonBlockingWarnings.Add("Current storage mode / limitation: Production is using SQLite. This is acceptable for the current Render Free early prototype, but Postgres/Supabase remains the future durability upgrade.");
+            nextActions.Add("Keep the manual import/scoring loop on SQLite for the current Render Free prototype; plan Supabase/Postgres as a future durability upgrade.");
+        }
+
+        foreach (var warning in readiness.Warnings)
+        {
+            if (!blockingReasons.Contains(warning, StringComparer.OrdinalIgnoreCase))
+            {
+                blockingReasons.Add(warning);
+            }
+        }
+
+        var productionDataReady = database.IsReachable
+            && isUsingImportedManualData
+            && blockingReasons.Count == 0;
+
+        if (productionDataReady)
+        {
+            nextActions.Add("Continue scheduled imports and manual scoring reviews; no readiness blockers are currently detected.");
+        }
+
+        return new ModelSnapshotOperationalState(
+            dataMode,
+            isUsingSampleData,
+            isUsingImportedManualData,
+            productionDataReady,
+            blockingReasons.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(reason => reason).ToList(),
+            nextActions.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(action => action).ToList())
+        {
+            NonBlockingWarnings = nonBlockingWarnings
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(warning => warning)
+                .ToList()
+        };
     }
 
     private ModelSnapshotDeploymentMetadata GetDeploymentMetadata(string environment)
@@ -232,6 +377,18 @@ public sealed class ModelSnapshotService(
         return dataQualityStatus is not null
             && dataQualityStatus.Contains("stale", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool IsSuccessfulImportStatus(string status)
+    {
+        return status.Equals("Completed", StringComparison.OrdinalIgnoreCase)
+            || status.Equals("Succeeded", StringComparison.OrdinalIgnoreCase)
+            || status.Equals("Success", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsDataMode(string? value, string expected)
+    {
+        return value is not null && value.Equals(expected, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 public sealed record ModelSnapshotResponse(
@@ -249,6 +406,10 @@ public sealed record ModelSnapshotResponse(
     IReadOnlyList<ModelSnapshotInterpretation> DerivedInterpretations,
     ModelSnapshotImportStatus? LatestImportStatus,
     ModelSnapshotScoringStatus? LatestScoringStatus,
+    ModelSnapshotImportStatus? LatestSuccessfulImportStatus,
+    IReadOnlyList<ModelSnapshotImportStatus> LatestImportsByDataSource,
+    ModelSnapshotScoringVisibility ScoringVisibility,
+    ModelSnapshotOperationalState OperationalState,
     IReadOnlyList<ModelSnapshotTradeCandidate> TradeCandidates,
     IReadOnlyList<string> Warnings,
     IReadOnlyList<string> OpenQuestions);
@@ -276,6 +437,32 @@ public sealed record ModelSnapshotDataStatus(
     bool Ready,
     bool FredReady,
     int ActiveFredSeriesCount);
+
+public sealed record ModelSnapshotOperationalState(
+    string DataMode,
+    bool IsUsingSampleData,
+    bool IsUsingImportedManualData,
+    bool ProductionDataReady,
+    IReadOnlyList<string> BlockingReasons,
+    IReadOnlyList<string> NextActions)
+{
+    public IReadOnlyList<string> NonBlockingWarnings { get; init; } = [];
+}
+
+public sealed record ModelSnapshotScoringVisibility(
+    IReadOnlyList<ModelSnapshotScoreDateByDataMode> LatestScoreDateByDataMode,
+    DateOnly? LatestSampleScoreDate,
+    DateOnly? LatestImportedManualScoreDate,
+    string SelectedScoreMode,
+    DateOnly? SelectedScoreDate)
+{
+    public static ModelSnapshotScoringVisibility Empty { get; } = new([], null, null, "Unknown", null);
+}
+
+public sealed record ModelSnapshotScoreDateByDataMode(
+    string DataMode,
+    DateOnly LatestScoreDate,
+    int FactorScoreCount);
 
 public sealed record ModelSnapshotCategoryScore(string Category, decimal Score);
 
