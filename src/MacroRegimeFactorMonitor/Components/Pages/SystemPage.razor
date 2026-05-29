@@ -107,6 +107,19 @@ else
                 <p class="message success">Production data readiness checks passed.</p>
             }
 
+            @if (snapshot.OperationalState.NonBlockingWarnings.Count > 0)
+            {
+                <div class="message">
+                    <strong>Current storage mode / limitation</strong>
+                    <ul>
+                        @foreach (var warning in snapshot.OperationalState.NonBlockingWarnings)
+                        {
+                            <li>@warning</li>
+                        }
+                    </ul>
+                </div>
+            }
+
             @if (snapshot.OperationalState.NextActions.Count > 0)
             {
                 <div class="message">

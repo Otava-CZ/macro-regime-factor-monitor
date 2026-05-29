@@ -16,11 +16,11 @@ Tasks:
 - Confirm `/`, `/ping`, `/health`, `/ready`, `/system`, `/workflow`, `/imports`, `/scoring`, `/api/model/snapshot`.
 - Remove obsolete Render env vars: `TemporaryAccess__Enabled`, `TemporaryAccess__Token`.
 - Configure production-like variables when ready:
-  - `Database__Provider=Postgres`
-  - `ConnectionStrings__MacroRegime=<Supabase session-pooler connection string>`
+  - keep SQLite for the current Render Free early prototype if it is working,
   - `Fred__ApiKey=<FRED API key>`
   - `Fred__BaseUrl=https://api.stlouisfed.org/fred`
   - `StartupSync__FailFast=false`
+  - defer `Database__Provider=Postgres` and `ConnectionStrings__MacroRegime=<Supabase session-pooler connection string>` until the durability upgrade.
 
 Acceptance:
 - App opens without `access_token`.
@@ -77,12 +77,11 @@ Current status:
 **Goal:** Move the deployed app from sample-only mode toward real import/scoring readiness.
 
 Tasks:
-- Configure or verify production-like Render/Supabase/FRED variables outside source control:
-  - `Database__Provider=Postgres`
-  - `ConnectionStrings__MacroRegime=<Supabase session-pooler connection string>`
+- Configure or verify production-like Render/FRED variables outside source control:
   - `Fred__ApiKey=<FRED API key>`
   - `Fred__BaseUrl=https://api.stlouisfed.org/fred`
   - `StartupSync__FailFast=false`
+- Keep SQLite acceptable for the current Render Free early prototype when it is working; treat Supabase/Postgres as a future durability upgrade, not as a prerequisite for the import/manual-scoring loop.
 - Ensure `/ready`, `/system`, and `/api/model/snapshot` explain precisely why the app is or is not data-ready.
 - Add clearer latest-import and latest-scoring diagnostics by source/mode if needed.
 - Keep sample data as fallback only.
@@ -91,7 +90,7 @@ Tasks:
 Acceptance:
 - Snapshot clearly says whether the dashboard is using `Sample` or `ImportedManual` data.
 - `operationalState.productionDataReady` is false whenever `DataMode` is `Sample`.
-- Missing FRED/Postgres/import/scoring prerequisites are visible as warnings or blocking reasons.
+- Missing FRED/import/scoring prerequisites are visible as blocking reasons, while SQLite in Production is visible as a non-blocking current storage-mode limitation.
 - No secrets are exposed.
 
 ---

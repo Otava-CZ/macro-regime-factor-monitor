@@ -73,7 +73,7 @@ The app chooses its EF Core provider from configuration:
 - If SQLite is selected and `ConnectionStrings:MacroRegime` is blank or missing, the app falls back to the local SQLite connection string `Data Source=macro-regime.db`.
 - If Postgres is selected, `ConnectionStrings:MacroRegime` must be set. The app fails fast if it is missing or blank.
 
-`appsettings.json` intentionally does not contain a real database secret. Keep the local default on SQLite for normal development, and store any Supabase/Postgres connection string outside source control with .NET user secrets.
+`appsettings.json` intentionally does not contain a real database secret. Keep the local default on SQLite for normal development, and store any Supabase/Postgres connection string outside source control with .NET user secrets. SQLite is also acceptable for the current Render Free early prototype when the manual import/scoring loop is being validated; Supabase/Postgres remains the future durability upgrade rather than a prerequisite for imports and manual scoring.
 
 ### Local SQLite default
 
@@ -114,7 +114,7 @@ Build the image from the repository root:
 docker build -t macro-regime-monitor:local .
 ```
 
-Run the image with production-like Postgres and FRED configuration in PowerShell:
+Run the image with FRED and optional production-like Postgres configuration in PowerShell. Omit `Database__Provider` and `ConnectionStrings__MacroRegime` to use the SQLite fallback for a Render Free-style early prototype:
 
 ```powershell
 docker run --rm -p 8080:8080 ^
@@ -126,7 +126,7 @@ docker run --rm -p 8080:8080 ^
   macro-regime-monitor:local
 ```
 
-Run the same image on Linux or macOS shells:
+Run the same optional-Postgres image on Linux or macOS shells:
 
 ```bash
 docker run --rm -p 8080:8080 \
@@ -142,11 +142,11 @@ For Docker Compose, copy the template, fill in local secret values, and start th
 
 ```bash
 cp .env.example .env
-# edit .env and set ConnectionStrings__MacroRegime plus Fred__ApiKey
+# edit .env and set Fred__ApiKey; set ConnectionStrings__MacroRegime only when opting into Postgres
 docker compose -f docker-compose.example.yml --env-file .env up --build
 ```
 
-The `.env.example` file is safe to commit because it contains empty values and placeholders only. Do not commit `.env`, a FRED API key, a Supabase/Postgres connection string, or any other local secret file. Use the Supabase Session Pooler connection string for production-like deployments.
+The `.env.example` file is safe to commit because it contains empty values and placeholders only. Do not commit `.env`, a FRED API key, a Supabase/Postgres connection string, or any other local secret file. Use the Supabase Session Pooler connection string when opting into Postgres-backed deployments.
 
 After the container starts, run these smoke tests from the host:
 
@@ -158,9 +158,9 @@ After the container starts, run these smoke tests from the host:
 Docker deployment safety notes:
 
 - `/health` and `/ready` expose only safe diagnostics and must not display API keys, connection strings, or other secrets.
-- The operational workflow remains manual: open `/workflow` and explicitly run the manual workflow after Supabase/Postgres and FRED are configured.
+- The operational workflow remains manual: open `/workflow` and explicitly run the manual workflow after FRED and the chosen storage mode are configured. SQLite is acceptable for the current Render Free-style prototype; Supabase/Postgres is a future durability upgrade.
 - There is no scheduled job, automatic startup refresh, automatic scoring, broker integration, automatic trading, execution routing, order management, or `TradeIdea` automation in the Docker deployment path.
-- SQLite remains available when selected by configuration; Postgres remains the intended provider for Supabase-backed production-like use.
+- SQLite remains available when selected by configuration and is acceptable for the current Render Free early prototype; Postgres/Supabase remains the intended future durability upgrade for production-like persistence.
 
 ### Docker acceptance checklist
 
@@ -173,7 +173,7 @@ Before treating a Docker-hosted instance as production-like, verify:
 - [ ] `/ready` works from the container.
 - [ ] `/system` loads from the container.
 - [ ] `/workflow` loads from the container.
-- [ ] The manual workflow works from the container with Supabase/FRED configured.
+- [ ] The manual workflow works from the container with FRED configured and either SQLite or Supabase/Postgres storage selected.
 - [ ] No secrets are present in `Dockerfile`, `docker-compose.example.yml`, `README.md`, or logs.
 
 
