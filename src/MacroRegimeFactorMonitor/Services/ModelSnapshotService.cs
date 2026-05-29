@@ -161,7 +161,7 @@ public sealed class ModelSnapshotService(
             openQuestions.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(question => question).ToList());
     }
 
-    private static ModelSnapshotFactorScore ToFactorSnapshot(Domain.FactorScore score)
+    private static ModelSnapshotFactorScore ToFactorSnapshot(MacroRegimeFactorMonitor.Domain.FactorScore score)
     {
         var factorName = score.MacroFactor?.Name ?? $"Factor {score.MacroFactorId}";
 
