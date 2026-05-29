@@ -39,6 +39,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
     builder.Services.AddScoped<JournalService>();
     builder.Services.AddScoped<StartupSyncService>();
     builder.Services.AddScoped<AppConfigurationDiagnosticsService>();
+    builder.Services.AddScoped<ModelSnapshotService>();
     builder.Services.AddHttpClient<IDataSourceClient, FredDataSourceClient>();
     builder.Services.AddScoped<IDataSourceClient, BlsDataSourceClient>();
     builder.Services.AddScoped<IDataSourceClient, EiaDataSourceClient>();
@@ -123,6 +124,12 @@ static void MapEndpoints(WebApplication app)
         return readiness.DatabaseReady
             ? Results.Ok(readiness)
             : Results.Json(readiness, statusCode: StatusCodes.Status503ServiceUnavailable);
+    });
+
+    app.MapGet("/api/model/snapshot", async (ModelSnapshotService snapshotService, CancellationToken cancellationToken) =>
+    {
+        var snapshot = await snapshotService.GetSnapshotAsync(cancellationToken);
+        return Results.Ok(snapshot);
     });
 
     app.MapRazorComponents<App>()
