@@ -6,11 +6,13 @@ namespace MacroRegimeFactorMonitor.Services;
 public sealed class ModelSnapshotService(
     FactorScoringService factorScoringService,
     AppConfigurationDiagnosticsService diagnosticsService,
-    IDbContextFactory<MacroRegimeDbContext> dbFactory)
+    IDbContextFactory<MacroRegimeDbContext> dbFactory,
+    IConfiguration configuration)
 {
     public async Task<ModelSnapshotResponse> GetSnapshotAsync(CancellationToken cancellationToken = default)
     {
-        var configuration = diagnosticsService.GetSnapshot();
+        var configurationSnapshot = diagnosticsService.GetSnapshot();
+        var deployment = GetDeploymentMetadata(configurationSnapshot.Environment);
         var database = await diagnosticsService.CheckDatabaseAsync(cancellationToken);
         var readiness = database.IsReachable
             ? await diagnosticsService.GetReadinessAsync(cancellationToken)
@@ -18,7 +20,7 @@ public sealed class ModelSnapshotService(
             {
                 Ready = false,
                 DatabaseReady = false,
-                FredConfigured = configuration.FredApiKeyConfigured && configuration.FredBaseUrlEffectiveConfigured,
+                FredConfigured = configurationSnapshot.FredApiKeyConfigured && configurationSnapshot.FredBaseUrlEffectiveConfigured,
                 Warnings = [$"Database is unavailable: {database.Message}"]
             };
 
@@ -123,15 +125,16 @@ public sealed class ModelSnapshotService(
 
         return new ModelSnapshotResponse(
             DateTimeOffset.UtcNow,
+            deployment,
             new ModelSnapshotDataStatus(
-                configuration.Environment,
-                configuration.DatabaseProvider,
-                configuration.DatabaseProviderConfigured,
-                configuration.DatabaseConnectionConfigured,
+                configurationSnapshot.Environment,
+                configurationSnapshot.DatabaseProvider,
+                configurationSnapshot.DatabaseProviderConfigured,
+                configurationSnapshot.DatabaseConnectionConfigured,
                 database.IsReachable,
                 database.Message,
-                configuration.FredApiKeyConfigured,
-                configuration.FredBaseUrlEffectiveConfigured,
+                configurationSnapshot.FredApiKeyConfigured,
+                configurationSnapshot.FredBaseUrlEffectiveConfigured,
                 readiness.Ready,
                 readiness.FredConfigured,
                 readiness.ActiveFredSeriesCount),
@@ -159,6 +162,34 @@ public sealed class ModelSnapshotService(
             tradeCandidates,
             warnings.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(warning => warning).ToList(),
             openQuestions.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(question => question).ToList());
+    }
+
+    private ModelSnapshotDeploymentMetadata GetDeploymentMetadata(string environment)
+    {
+        return new ModelSnapshotDeploymentMetadata(
+            environment,
+            FirstConfiguredValue("Render:ServiceName", "RENDER_SERVICE_NAME"),
+            FirstConfiguredValue("Render:ServiceId", "RENDER_SERVICE_ID"),
+            FirstConfiguredValue("Render:ExternalHostname", "RENDER_EXTERNAL_HOSTNAME"),
+            FirstConfiguredValue("Render:GitBranch", "RENDER_GIT_BRANCH", "GIT_BRANCH"),
+            FirstConfiguredValue("Render:GitCommit", "RENDER_GIT_COMMIT", "GIT_COMMIT", "SOURCE_VERSION"),
+            FirstConfiguredValue("Render:GitRepository", "RENDER_GIT_REPO_SLUG", "RENDER_GIT_REPOSITORY", "GIT_REPOSITORY"),
+            FirstConfiguredValue("Render:DeployId", "RENDER_DEPLOY_ID"),
+            FirstConfiguredValue("Render:InstanceId", "RENDER_INSTANCE_ID"));
+    }
+
+    private string? FirstConfiguredValue(params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            var value = configuration[key];
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return null;
     }
 
     private static ModelSnapshotFactorScore ToFactorSnapshot(MacroRegimeFactorMonitor.Domain.FactorScore score)
@@ -205,6 +236,7 @@ public sealed class ModelSnapshotService(
 
 public sealed record ModelSnapshotResponse(
     DateTimeOffset AsOfUtc,
+    ModelSnapshotDeploymentMetadata Deployment,
     ModelSnapshotDataStatus DataStatus,
     DateOnly? LatestScoreDate,
     decimal CompositeScore,
@@ -220,6 +252,17 @@ public sealed record ModelSnapshotResponse(
     IReadOnlyList<ModelSnapshotTradeCandidate> TradeCandidates,
     IReadOnlyList<string> Warnings,
     IReadOnlyList<string> OpenQuestions);
+
+public sealed record ModelSnapshotDeploymentMetadata(
+    string Environment,
+    string? ServiceName,
+    string? ServiceId,
+    string? ExternalHostname,
+    string? GitBranch,
+    string? GitCommit,
+    string? GitRepository,
+    string? DeployId,
+    string? InstanceId);
 
 public sealed record ModelSnapshotDataStatus(
     string Environment,
