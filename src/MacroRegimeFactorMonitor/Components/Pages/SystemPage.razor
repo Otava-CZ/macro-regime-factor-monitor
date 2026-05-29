@@ -1,10 +1,11 @@
 @page "/system"
 @inject AppConfigurationDiagnosticsService DiagnosticsService
+@inject ModelSnapshotService SnapshotService
 
 <PageTitle>System</PageTitle>
 
 <h1>System</h1>
-<p class="lede">Read-only deployment diagnostics for Azure App Service POC readiness. Secrets and connection strings are never displayed.</p>
+<p class="lede">Read-only deployment diagnostics for Render production-data readiness. Secrets and connection strings are never displayed.</p>
 
 @if (diagnostics is null)
 {
@@ -74,28 +75,85 @@ else
         }
     </section>
 
+    @if (snapshot is not null)
+    {
+        <section class="card">
+            <h2>Production data readiness</h2>
+            <div class="summary-grid">
+                <div class="metric-card"><span>Selected data mode</span><strong>@snapshot.OperationalState.DataMode</strong></div>
+                <div class="metric-card"><span>Production data ready</span><strong>@FormatBool(snapshot.OperationalState.ProductionDataReady)</strong></div>
+                <div class="metric-card"><span>Using sample data</span><strong>@FormatBool(snapshot.OperationalState.IsUsingSampleData)</strong></div>
+                <div class="metric-card"><span>Using ImportedManual</span><strong>@FormatBool(snapshot.OperationalState.IsUsingImportedManualData)</strong></div>
+                <div class="metric-card"><span>Latest successful import</span><strong>@FormatImport(snapshot.LatestSuccessfulImportStatus)</strong></div>
+                <div class="metric-card"><span>Latest Sample score</span><strong>@FormatDate(snapshot.ScoringVisibility.LatestSampleScoreDate)</strong></div>
+                <div class="metric-card"><span>Latest ImportedManual score</span><strong>@FormatDate(snapshot.ScoringVisibility.LatestImportedManualScoreDate)</strong></div>
+                <div class="metric-card"><span>Dashboard score mode</span><strong>@snapshot.ScoringVisibility.SelectedScoreMode</strong></div>
+            </div>
+
+            @if (snapshot.OperationalState.BlockingReasons.Count > 0)
+            {
+                <div class="message warning">
+                    <strong>Blocking reasons</strong>
+                    <ul>
+                        @foreach (var reason in snapshot.OperationalState.BlockingReasons)
+                        {
+                            <li>@reason</li>
+                        }
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <p class="message success">Production data readiness checks passed.</p>
+            }
+
+            @if (snapshot.OperationalState.NextActions.Count > 0)
+            {
+                <div class="message">
+                    <strong>Next actions</strong>
+                    <ul>
+                        @foreach (var action in snapshot.OperationalState.NextActions)
+                        {
+                            <li>@action</li>
+                        }
+                    </ul>
+                </div>
+            }
+        </section>
+    }
+
     <section class="card">
         <h2>Endpoint links</h2>
         <p>
             <a href="/health" target="_blank">/health</a>
             <span> | </span>
             <a href="/ready" target="_blank">/ready</a>
+            <span> | </span>
+            <a href="/api/model/snapshot" target="_blank">/api/model/snapshot</a>
         </p>
     </section>
 }
 
 @code {
     private SystemDiagnosticsResponse? diagnostics;
+    private ModelSnapshotResponse? snapshot;
 
     protected override async Task OnInitializedAsync()
     {
         diagnostics = await DiagnosticsService.GetSystemDiagnosticsAsync();
+        snapshot = await SnapshotService.GetSnapshotAsync();
     }
 
     private static string FormatBool(bool value) => value ? "Yes" : "No";
 
     private static string FormatDateTime(DateTime? value) =>
         value.HasValue ? $"{value.Value:yyyy-MM-dd HH:mm:ss} UTC" : "—";
+
+    private static string FormatDate(DateOnly? value) =>
+        value.HasValue ? value.Value.ToString("yyyy-MM-dd") : "—";
+
+    private static string FormatImport(ModelSnapshotImportStatus? import) =>
+        import is null ? "—" : $"{import.DataSource} / {import.Status} / {FormatDateTime(import.FinishedAtUtc ?? import.StartedAtUtc)}";
 
     private static string FormatScore(DateOnly? scoreDate, string? version)
     {
