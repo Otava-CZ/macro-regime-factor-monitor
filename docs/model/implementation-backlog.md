@@ -27,7 +27,8 @@ Acceptance:
 - `/ping` returns running.
 - `/health`, `/ready`, and `/api/model/snapshot` return safe diagnostics.
 - Snapshot includes safe deployment metadata when configured or exposed by host environment.
-- No secrets are shown in UI/logs/snapshot.
+- Snapshot includes production-data readiness blockers and next actions without exposing secrets.
+- No secrets are shown in UI/logs/snapshot/docs.
 - `develop` is the target branch for new implementation PRs.
 
 ---
@@ -46,12 +47,15 @@ Snapshot should include:
 - as-of timestamp,
 - safe deployment metadata,
 - data provider/database status,
+- top-level `operationalState` with data mode, production readiness, blocking reasons, and next actions,
+- FRED configured status and active FRED series count,
 - factor scores,
 - factor slopes/changes,
 - data freshness warnings,
 - derived interpretations,
-- latest import status,
-- latest scoring status,
+- latest import status, latest successful import, and latest import by data source,
+- latest scoring status and latest score dates by data mode,
+- selected score mode used by the dashboard/snapshot,
 - current trade candidates/watchlist items,
 - warnings/open questions.
 
@@ -64,6 +68,7 @@ Acceptance:
 Current status:
 - Initial endpoint is deployed on `main` and works on Render.
 - Follow-up diagnostics chunk adds safe deployment metadata and develop-first workflow documentation.
+- Production-data readiness diagnostics are implemented on the feature branch for review.
 
 ---
 
@@ -72,14 +77,21 @@ Current status:
 **Goal:** Move the deployed app from sample-only mode toward real import/scoring readiness.
 
 Tasks:
-- Configure or verify production-like Render/Supabase/FRED variables outside source control.
-- Ensure `/ready` and `/api/model/snapshot` explain precisely why the app is or is not data-ready.
+- Configure or verify production-like Render/Supabase/FRED variables outside source control:
+  - `Database__Provider=Postgres`
+  - `ConnectionStrings__MacroRegime=<Supabase session-pooler connection string>`
+  - `Fred__ApiKey=<FRED API key>`
+  - `Fred__BaseUrl=https://api.stlouisfed.org/fred`
+  - `StartupSync__FailFast=false`
+- Ensure `/ready`, `/system`, and `/api/model/snapshot` explain precisely why the app is or is not data-ready.
 - Add clearer latest-import and latest-scoring diagnostics by source/mode if needed.
 - Keep sample data as fallback only.
+- Keep secrets in Render only; do not commit them to source, docs, examples, logs, UI output, or snapshot JSON.
 
 Acceptance:
 - Snapshot clearly says whether the dashboard is using `Sample` or `ImportedManual` data.
-- Missing FRED/Postgres/import/scoring prerequisites are visible as warnings.
+- `operationalState.productionDataReady` is false whenever `DataMode` is `Sample`.
+- Missing FRED/Postgres/import/scoring prerequisites are visible as warnings or blocking reasons.
 - No secrets are exposed.
 
 ---
