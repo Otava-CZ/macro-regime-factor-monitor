@@ -232,6 +232,7 @@ public sealed class ModelSnapshotService(
         var isUsingSampleData = IsDataMode(dataMode, "Sample");
         var isUsingImportedManualData = IsDataMode(dataMode, "ImportedManual");
         var blockingReasons = new List<string>();
+        var nonBlockingWarnings = new List<string>();
         var nextActions = new List<string>();
 
         if (!database.IsReachable)
@@ -272,8 +273,8 @@ public sealed class ModelSnapshotService(
         if (configurationSnapshot.Environment.Equals("Production", StringComparison.OrdinalIgnoreCase)
             && configurationSnapshot.DatabaseProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
         {
-            blockingReasons.Add("Production is using SQLite; configure Postgres for durable production-like data readiness.");
-            nextActions.Add("Set Database__Provider=Postgres and ConnectionStrings__MacroRegime in Render.");
+            nonBlockingWarnings.Add("Current storage mode / limitation: Production is using SQLite. This is acceptable for the current Render Free early prototype, but Postgres/Supabase remains the future durability upgrade.");
+            nextActions.Add("Keep the manual import/scoring loop on SQLite for the current Render Free prototype; plan Supabase/Postgres as a future durability upgrade.");
         }
 
         foreach (var warning in readiness.Warnings)
@@ -299,7 +300,13 @@ public sealed class ModelSnapshotService(
             isUsingImportedManualData,
             productionDataReady,
             blockingReasons.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(reason => reason).ToList(),
-            nextActions.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(action => action).ToList());
+            nextActions.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(action => action).ToList())
+        {
+            NonBlockingWarnings = nonBlockingWarnings
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(warning => warning)
+                .ToList()
+        };
     }
 
     private ModelSnapshotDeploymentMetadata GetDeploymentMetadata(string environment)
@@ -437,7 +444,10 @@ public sealed record ModelSnapshotOperationalState(
     bool IsUsingImportedManualData,
     bool ProductionDataReady,
     IReadOnlyList<string> BlockingReasons,
-    IReadOnlyList<string> NextActions);
+    IReadOnlyList<string> NextActions)
+{
+    public IReadOnlyList<string> NonBlockingWarnings { get; init; } = [];
+}
 
 public sealed record ModelSnapshotScoringVisibility(
     IReadOnlyList<ModelSnapshotScoreDateByDataMode> LatestScoreDateByDataMode,
