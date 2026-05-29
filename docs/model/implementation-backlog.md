@@ -107,6 +107,9 @@ Tasks:
 - Confirm existing approved FRED mappings.
 - Harden manual import action.
 - Harden manual scoring action from imported observations.
+- Provide `/ops` assistant-clickable manual smoke-test controls, disabled by default with `OperatorActions__Enabled=false`.
+- Enable `/ops` actions on Render `develop` only when intentionally testing with `OperatorActions__Enabled=true`; do not enable unintentionally on public stable `main`.
+- Keep `/ops` actions limited to workflows already available through the `/imports` and `/scoring` UI buttons.
 - Store `ImportedManual` scores with explicit scoring model version.
 - Prefer `ImportedManual` over `Sample` when available.
 - Show source observation dates and data quality status in dashboard/snapshot.
@@ -114,11 +117,22 @@ Tasks:
 
 Manual prototype flow:
 1. Configure `Fred__ApiKey` in Render environment variables.
-2. Open `/imports`.
-3. Run manual FRED imports for active configured series.
-4. Open `/scoring`.
-5. Run manual scoring to create `ImportedManual` factor scores.
-6. Verify `/api/model/snapshot` and the dashboard select `ImportedManual`.
+2. Keep operator actions disabled by default with `OperatorActions__Enabled=false`.
+3. For intentional Render `develop` smoke testing, temporarily set `OperatorActions__Enabled=true`.
+4. Open `/ops`.
+5. Click the normal link for `/ops/actions/imports/fred/refresh-active?confirm=refresh-active-fred`, or open `/imports` and use the manual UI button.
+6. Click the normal link for `/ops/actions/scoring/recalculate-imported-manual?confirm=recalculate-imported-manual`, or open `/scoring` and use the manual UI button.
+7. Verify `/api/model/snapshot` and the dashboard select `ImportedManual`.
+
+Safety boundaries:
+- No broker integration.
+- No order placement.
+- No automatic trading.
+- No execution routing or order management.
+- No scheduled imports or scheduled scoring.
+- No startup import/scoring.
+- No macro threshold or macro factor assumption changes.
+- No secrets in URLs, UI output, logs, docs, or JSON.
 
 Acceptance:
 - After manual workflow, snapshot shows `dataMode = ImportedManual`.

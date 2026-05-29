@@ -111,6 +111,20 @@ public sealed class ImportedObservationScoringService(IDbContextFactory<MacroReg
         return result;
     }
 
+    public async Task<DateOnly?> GetLatestImportedObservationDateAsync(CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+
+        return await db.IndicatorObservations
+            .AsNoTracking()
+            .Include(observation => observation.ExternalSeries)
+            .Where(observation => observation.ExternalSeriesId != null
+                && observation.ExternalSeries != null
+                && observation.ExternalSeries.DataSource != null
+                && observation.ExternalSeries.DataSource.Name == "FRED")
+            .MaxAsync(observation => (DateOnly?)observation.ObservationDate, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<FactorScore>> GetLatestImportedManualScoresAsync(CancellationToken cancellationToken = default)
     {
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);

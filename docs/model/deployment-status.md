@@ -105,6 +105,33 @@ TemporaryAccess__Token
 
 Remove these from Render if present.
 
+
+## Manual operator actions for deployed smoke testing
+
+The prototype includes an assistant-clickable operator page at `/ops` for deployed smoke tests. It summarizes the current environment, database provider, FRED readiness, active FRED series count, latest successful import, latest `ImportedManual` score date, selected dashboard data mode, operational blockers, and non-blocking warnings.
+
+Operator actions are disabled by default:
+
+```text
+OperatorActions__Enabled=false
+```
+
+For an intentional Render `develop` smoke test only, set:
+
+```text
+OperatorActions__Enabled=true
+```
+
+Do not enable operator actions unintentionally on public stable `main`; enable them only when intentionally testing. The actions are manual friction-gated links, not automation. They require explicit confirmation query phrases and only trigger the same import/scoring workflows already available through the `/imports` and `/scoring` UI buttons:
+
+```text
+/ops/actions/imports/fred/refresh-active?confirm=refresh-active-fred
+/ops/actions/scoring/recalculate-imported-manual?confirm=recalculate-imported-manual
+/ops/actions/scoring/recalculate-imported-manual?scoreDate=YYYY-MM-DD&confirm=recalculate-imported-manual
+```
+
+These controls do not perform trading, execution, broker actions, order placement, scheduled imports, scheduled scoring, startup scoring, or changes to macro model assumptions. SQLite remains acceptable for the Render Free prototype; Postgres is not required for this smoke-test loop. Never place secrets in URLs, UI output, logs, docs, or JSON.
+
 ## Deployment history
 
 ### Azure App Service F1
