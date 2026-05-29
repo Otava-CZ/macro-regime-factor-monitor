@@ -1,0 +1,120 @@
+@page "/ops"
+@inject IConfiguration Configuration
+@inject ModelSnapshotService ModelSnapshotService
+
+<PageTitle>Operator Actions</PageTitle>
+
+<h1>Operator Actions</h1>
+<p class="lede">Manual prototype operator actions for deployed smoke testing. These links only trigger the same manual import and scoring workflows already available through the Blazor UI buttons.</p>
+
+@if (snapshot is null)
+{
+    <p>Loading operator status...</p>
+}
+else
+{
+    <section class="card compact-card">
+        <strong>Operator actions:</strong>
+        @(ActionsEnabled ? "Enabled for manual smoke testing." : "Disabled. Set OperatorActions__Enabled=true only when intentionally testing a deployed prototype.")
+    </section>
+
+    <section class="card">
+        <h2>Current status</h2>
+        <div class="summary-grid">
+            <div class="metric-card"><span>Environment</span><strong>@snapshot.DataStatus.Environment</strong></div>
+            <div class="metric-card"><span>Database provider</span><strong>@snapshot.DataStatus.DatabaseProvider</strong></div>
+            <div class="metric-card"><span>FRED readiness</span><strong>@FormatReady(snapshot.DataStatus.FredReady)</strong></div>
+            <div class="metric-card"><span>Active FRED series</span><strong>@snapshot.DataStatus.ActiveFredSeriesCount</strong></div>
+            <div class="metric-card"><span>Latest successful import</span><strong>@FormatImport(snapshot.LatestSuccessfulImportStatus)</strong></div>
+            <div class="metric-card"><span>Latest ImportedManual score date</span><strong>@FormatDate(snapshot.LatestImportedManualScoreDate)</strong></div>
+            <div class="metric-card"><span>Selected dashboard data mode</span><strong>@FormatText(snapshot.DataMode)</strong></div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Manual actions</h2>
+        @if (ActionsEnabled)
+        {
+            <ul class="link-list">
+                <li><a href="/ops/actions/imports/fred/refresh-active?confirm=refresh-active-fred">Run active FRED imports</a></li>
+                <li><a href="/ops/actions/scoring/recalculate-imported-manual?confirm=recalculate-imported-manual">Recalculate ImportedManual scores using latest available imported observation date</a></li>
+            </ul>
+        }
+        else
+        {
+            <p class="section-note">Run active FRED imports — disabled because OperatorActions__Enabled is false.</p>
+            <p class="section-note">Recalculate ImportedManual scores — disabled because OperatorActions__Enabled is false.</p>
+        }
+
+        <h3>Navigation links</h3>
+        <ul class="link-list">
+            <li><a href="/api/model/snapshot">Open /api/model/snapshot</a></li>
+            <li><a href="/imports">Open /imports</a></li>
+            <li><a href="/scoring">Open /scoring</a></li>
+            <li><a href="/system">Open /system</a></li>
+            <li><a href="/dashboard">Open dashboard</a></li>
+        </ul>
+    </section>
+
+    <section class="card">
+        <h2>Operational blockers</h2>
+        @if (snapshot.OperationalState.BlockingReasons.Count == 0)
+        {
+            <p>No operational blockers are currently reported.</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var blocker in snapshot.OperationalState.BlockingReasons)
+                {
+                    <li>@blocker</li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section class="card">
+        <h2>Non-blocking warnings</h2>
+        @if (snapshot.OperationalState.NonBlockingWarnings.Count == 0)
+        {
+            <p>No non-blocking warnings are currently reported.</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var warning in snapshot.OperationalState.NonBlockingWarnings)
+                {
+                    <li>@warning</li>
+                }
+            </ul>
+        }
+    </section>
+}
+
+@code {
+    private ModelSnapshotResponse? snapshot;
+
+    private bool ActionsEnabled => Configuration.GetValue<bool>("OperatorActions:Enabled");
+
+    protected override async Task OnInitializedAsync()
+    {
+        snapshot = await ModelSnapshotService.GetSnapshotAsync();
+    }
+
+    private static string FormatReady(bool isReady) => isReady ? "Ready" : "Not ready";
+
+    private static string FormatDate(DateOnly? date) => date?.ToString("yyyy-MM-dd") ?? "—";
+
+    private static string FormatText(string? text) => string.IsNullOrWhiteSpace(text) ? "—" : text;
+
+    private static string FormatImport(ModelSnapshotImportStatus? importStatus)
+    {
+        if (importStatus is null)
+        {
+            return "—";
+        }
+
+        var finishedAt = importStatus.FinishedAtUtc?.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? "unfinished";
+        return $"{importStatus.Status} at {finishedAt}";
+    }
+}
