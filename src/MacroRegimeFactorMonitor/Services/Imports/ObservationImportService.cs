@@ -169,11 +169,12 @@ public sealed class ObservationImportService(
         {
             importRun.Status = "Failed";
             importRun.FinishedAtUtc = DateTime.UtcNow;
-            importRun.ErrorMessage = exception.Message;
+            var safeError = CreateSafeErrorSummary(exception);
+            importRun.ErrorMessage = safeError;
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            return FailedResult(exception.Message);
+            return FailedResult(safeError);
         }
     }
 
@@ -206,5 +207,20 @@ public sealed class ObservationImportService(
             Status = "Failed",
             ErrorMessage = errorMessage
         };
+    }
+
+    private static string CreateSafeErrorSummary(Exception exception)
+    {
+        const int maximumLength = 500;
+        var message = exception.Message;
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            message = $"Import failed with {exception.GetType().Name}.";
+        }
+
+        message = message.ReplaceLineEndings(" ").Trim();
+        return message.Length <= maximumLength
+            ? message
+            : string.Concat(message.AsSpan(0, maximumLength), "...");
     }
 }

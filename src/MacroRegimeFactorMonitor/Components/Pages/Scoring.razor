@@ -6,6 +6,13 @@
 <h1>Scoring</h1>
 <p class="lede">Manual imported-data scoring bridges persisted FRED observations into current FactorScores. It never runs on a schedule, startup, or import completion.</p>
 
+@if (!string.IsNullOrWhiteSpace(pageError))
+{
+    <section class="message error">
+        <strong>Manual scoring failed:</strong> @pageError
+    </section>
+}
+
 <section class="card">
     <h2>Manual imported observation recalculation</h2>
     <p class="section-note">The v0.8.2 workflow keeps manual ImportedManual scoring, adds simple lookback-window diagnostics, and maps only CPILFESL, DGS10, and VIXCLS; unmapped factors receive explicit neutral placeholders.</p>
@@ -146,6 +153,7 @@
     private bool isRunning;
     private ImportedObservationScoringResult? latestResult;
     private IReadOnlyList<FactorScore>? latestScores;
+    private string? pageError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -157,8 +165,13 @@
         isRunning = true;
         try
         {
+            pageError = null;
             latestResult = await ImportedScoringService.RecalculateCurrentScoresAsync(request.ScoreDate);
             await LoadLatestScoresAsync();
+        }
+        catch (Exception exception)
+        {
+            pageError = CreateSafeErrorSummary(exception);
         }
         finally
         {
@@ -168,7 +181,15 @@
 
     private async Task LoadLatestScoresAsync()
     {
-        latestScores = await ImportedScoringService.GetLatestImportedManualScoresAsync();
+        try
+        {
+            latestScores = await ImportedScoringService.GetLatestImportedManualScoresAsync();
+        }
+        catch (Exception exception)
+        {
+            pageError = CreateSafeErrorSummary(exception);
+            latestScores = [];
+        }
     }
 
     private static string FormatDate(DateOnly date) => date.ToString("yyyy-MM-dd");
@@ -185,6 +206,21 @@
 
     private static string FormatDateTime(DateTime? dateTime) =>
         dateTime?.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? "—";
+
+    private static string CreateSafeErrorSummary(Exception exception)
+    {
+        const int maximumLength = 500;
+        var message = exception.Message;
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            message = $"Scoring failed with {exception.GetType().Name}.";
+        }
+
+        message = message.ReplaceLineEndings(" ").Trim();
+        return message.Length <= maximumLength
+            ? message
+            : string.Concat(message.AsSpan(0, maximumLength), "...");
+    }
 
     private static string DataQualityStatusCss(string? status) => status switch
     {

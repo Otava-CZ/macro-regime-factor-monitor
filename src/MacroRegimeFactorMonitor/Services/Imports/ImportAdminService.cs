@@ -227,7 +227,7 @@ public sealed class ImportAdminService(
             catch (Exception exception)
             {
                 seriesResult.Status = "Failed";
-                seriesResult.ErrorMessage = exception.Message;
+                seriesResult.ErrorMessage = CreateSafeErrorSummary(exception);
             }
         }
 
@@ -279,6 +279,21 @@ public sealed class ImportAdminService(
 
     private static bool IsMonthly(string frequency) =>
         string.Equals(frequency, "Monthly", StringComparison.OrdinalIgnoreCase);
+
+    public string CreateSafeErrorSummary(Exception exception)
+    {
+        const int maximumLength = 500;
+        var message = exception.Message;
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            message = $"Import workflow failed with {exception.GetType().Name}.";
+        }
+
+        message = message.ReplaceLineEndings(" ").Trim();
+        return message.Length <= maximumLength
+            ? message
+            : string.Concat(message.AsSpan(0, maximumLength), "...");
+    }
 
     private sealed class FredRefreshSeriesRow
     {

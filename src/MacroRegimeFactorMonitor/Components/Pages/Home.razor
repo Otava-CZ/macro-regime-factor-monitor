@@ -1,4 +1,5 @@
 @page "/"
+@page "/dashboard"
 @inject FactorScoringService ScoringService
 
 <PageTitle>Macro Dashboard</PageTitle>
@@ -170,12 +171,17 @@ else
                 return "warning";
             }
 
-            var modeCount = snapshot.FactorScores
+            var modes = snapshot.FactorScores
                 .Select(score => score.DataMode)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Count();
+                .ToList();
 
-            return modeCount == 1 ? "warning" : "error";
+            if (modes.Count == 1 && string.Equals(modes[0], ImportedObservationScoringService.ImportedManualDataMode, StringComparison.OrdinalIgnoreCase))
+            {
+                return "success";
+            }
+
+            return modes.Count == 1 ? "warning" : "error";
         }
     }
 

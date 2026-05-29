@@ -148,14 +148,18 @@ Status: worked for user, not accessible from the overloaded ChatGPT instance.
 
 Status: current real host.
 
-Current confirmed state from live `/api/model/snapshot` after PR `#62`:
+Current confirmed state from the Render Free SQLite prototype before this manual import/scoring hardening chunk:
 - Environment: Production
 - Database provider: SQLite
 - Database reachable: true
-- FRED API key configured: false
+- FRED API key configured: true
+- FRED ready: true
+- Active FRED series count: 3
 - Data mode: Sample
-- Latest score date: 2026-04-30
-- Composite regime: Defensive Slowdown
+- Latest import status: null
+- Latest successful import status: null
+- Latest ImportedManual score date: null
+- Production data ready: false
 
 Next Render configuration step for production-like data:
 - keep the current Render Free SQLite storage mode for the early prototype if it is working,
@@ -180,3 +184,18 @@ Likely deployment method:
 - upload published output via FTP/File Manager/Web Deploy
 - ensure .NET 8 / ASP.NET Core runtime support
 - set environment variables/app settings for Supabase/FRED if supported.
+
+## Manual import and manual scoring prototype flow
+
+Current Render Free prototype target after the manual import/scoring hardening chunk:
+
+1. Configure `Fred__ApiKey` in Render environment variables. Do not place the key in source, logs, docs, UI text, or JSON output.
+2. Open `/imports`.
+3. Run the manual FRED import for active configured series, or use the manual "Refresh all active FRED series" action.
+4. Confirm the imports page shows safe import status, source, external series id, last successful import time, rows read, rows inserted, rows updated, and any safe error summaries.
+5. Open `/scoring`.
+6. Run the manual ImportedManual scoring action for the desired `ScoreDate`.
+7. Verify `/dashboard`, `/system`, and `/api/model/snapshot` show selected `DataMode = ImportedManual` once ImportedManual scores exist.
+8. Verify `/api/model/snapshot` has latest import status, latest successful import status, latest imports by data source, and `latestImportedManualScoreDate` populated.
+
+SQLite remains acceptable for the current Render Free prototype and should appear only as a non-blocking storage-mode limitation. `operationalState.productionDataReady` should become `true` only when the database is reachable, FRED is configured, at least one successful import exists, ImportedManual scores exist, and the selected dashboard/snapshot mode is `ImportedManual`.

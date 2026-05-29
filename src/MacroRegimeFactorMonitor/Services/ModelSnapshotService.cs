@@ -214,6 +214,7 @@ public sealed class ModelSnapshotService(
             latestSuccessfulImport,
             latestImportsByDataSource,
             scoringVisibility,
+            scoringVisibility.LatestImportedManualScoreDate,
             operationalState,
             tradeCandidates,
             warnings.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(warning => warning).ToList(),
@@ -291,7 +292,7 @@ public sealed class ModelSnapshotService(
 
         if (productionDataReady)
         {
-            nextActions.Add("Continue scheduled imports and manual scoring reviews; no readiness blockers are currently detected.");
+            nextActions.Add("Continue manual imports and manual scoring reviews; no readiness blockers are currently detected.");
         }
 
         return new ModelSnapshotOperationalState(
@@ -409,6 +410,7 @@ public sealed record ModelSnapshotResponse(
     ModelSnapshotImportStatus? LatestSuccessfulImportStatus,
     IReadOnlyList<ModelSnapshotImportStatus> LatestImportsByDataSource,
     ModelSnapshotScoringVisibility ScoringVisibility,
+    DateOnly? LatestImportedManualScoreDate,
     ModelSnapshotOperationalState OperationalState,
     IReadOnlyList<ModelSnapshotTradeCandidate> TradeCandidates,
     IReadOnlyList<string> Warnings,
